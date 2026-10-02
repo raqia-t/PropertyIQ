@@ -27,9 +27,11 @@ export default function Navbar() {
               <ShieldCheck className="w-4 h-4 text-emerald-600" />
               <span>Property Verification</span>
             </Link>
-            <Link href="/ai-intelligence" className="flex items-center gap-1 text-purple-600 hover:text-purple-700 transition">
-              <Sparkles className="w-4 h-4" />
-              <span>AI Market Scenarios</span>
+            <Link href="/compare" className="hover:text-emerald-600 transition">
+              Compare
+            </Link>
+            <Link href="/agent" className="text-emerald-700 font-semibold hover:text-emerald-800 transition">
+              Agent Portal
             </Link>
           </nav>
         </div>

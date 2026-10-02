@@ -24,6 +24,8 @@ public interface IApplicationDbContext
     DbSet<VerificationEvidence> VerificationEvidences { get; }
     DbSet<VerificationReport> VerificationReports { get; }
     DbSet<AuditLog> AuditLogs { get; }
+    DbSet<Inquiry> Inquiries { get; }
+    DbSet<SavedProperty> SavedProperties { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

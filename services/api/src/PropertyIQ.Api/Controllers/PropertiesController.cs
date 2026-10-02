@@ -162,4 +162,197 @@ public class PropertiesController : ControllerBase
             property.CreatedAtUtc
         });
     }
+
+    [HttpPost]
+    [Authorize]
+    public async Task<ActionResult<object>> CreateProperty([FromBody] PropertyIQ.Application.DTOs.Properties.CreatePropertyDto dto)
+    {
+        var userId = _currentUserService.UserId;
+        if (userId == null) return Unauthorized();
+
+        var property = new Property
+        {
+            OwnerOrAgentId = userId.Value,
+            Title = dto.Title.Trim(),
+            Purpose = dto.Purpose,
+            PropertyType = dto.PropertyType,
+            Status = ListingStatus.Published, // Published directly or pending moderation
+            Province = dto.Province,
+            City = dto.City,
+            Area = dto.Area,
+            SubArea = dto.SubArea,
+            Address = dto.Address,
+            Latitude = dto.Latitude,
+            Longitude = dto.Longitude,
+            PrivacyLevel = dto.PrivacyLevel,
+            Price = dto.Price,
+            Currency = dto.Currency,
+            IsNegotiable = dto.IsNegotiable,
+            Bedrooms = dto.Bedrooms,
+            Bathrooms = dto.Bathrooms,
+            LandArea = dto.LandArea,
+            LandAreaUnit = dto.LandAreaUnit,
+            CoveredAreaSqFt = dto.CoveredAreaSqFt,
+            TotalFloors = dto.TotalFloors,
+            ParkingSpaces = dto.ParkingSpaces,
+            Furnishing = dto.Furnishing,
+            ConstructionYear = dto.ConstructionYear,
+            Description = dto.Description,
+            VerificationStatus = PropertyVerificationStatus.Unverified,
+            ListingQualityScore = 75
+        };
+
+        _context.Properties.Add(property);
+        await _context.SaveChangesAsync();
+
+        return CreatedAtAction(nameof(GetPropertyById), new { id = property.Id }, new { property.Id, property.Title, property.Price });
+    }
+
+    [HttpPut("{id:guid}")]
+    [Authorize]
+    public async Task<ActionResult<object>> UpdateProperty(Guid id, [FromBody] PropertyIQ.Application.DTOs.Properties.UpdatePropertyDto dto)
+    {
+        var userId = _currentUserService.UserId;
+        if (userId == null) return Unauthorized();
+
+        var property = await _context.Properties.FirstOrDefaultAsync(p => p.Id == id && !p.IsDeleted);
+        if (property == null) return NotFound(new { message = "Property not found." });
+
+        if (property.OwnerOrAgentId != userId.Value && _currentUserService.UserRole != "SuperAdmin")
+        {
+            return Forbid();
+        }
+
+        if (dto.Title != null) property.Title = dto.Title;
+        if (dto.Status.HasValue) property.Status = dto.Status.Value;
+        if (dto.Price.HasValue) property.Price = dto.Price.Value;
+        if (dto.IsNegotiable.HasValue) property.IsNegotiable = dto.IsNegotiable.Value;
+        if (dto.Bedrooms.HasValue) property.Bedrooms = dto.Bedrooms.Value;
+        if (dto.Bathrooms.HasValue) property.Bathrooms = dto.Bathrooms.Value;
+        if (dto.Description != null) property.Description = dto.Description;
+
+        await _context.SaveChangesAsync();
+
+        return Ok(new { message = "Property updated successfully.", property.Id });
+    }
+
+    [HttpDelete("{id:guid}")]
+    [Authorize]
+    public async Task<ActionResult<object>> DeleteProperty(Guid id)
+    {
+        var userId = _currentUserService.UserId;
+        if (userId == null) return Unauthorized();
+
+        var property = await _context.Properties.FirstOrDefaultAsync(p => p.Id == id && !p.IsDeleted);
+        if (property == null) return NotFound(new { message = "Property not found." });
+
+        if (property.OwnerOrAgentId != userId.Value && _currentUserService.UserRole != "SuperAdmin")
+        {
+            return Forbid();
+        }
+
+        property.IsDeleted = true;
+        await _context.SaveChangesAsync();
+
+        return Ok(new { message = "Property removed successfully." });
+    }
+
+    [HttpPost("{id:guid}/media")]
+    [Authorize]
+    public async Task<ActionResult<object>> AddMedia(Guid id, [FromBody] PropertyIQ.Application.DTOs.Properties.AddPropertyMediaDto dto)
+    {
+        var userId = _currentUserService.UserId;
+        if (userId == null) return Unauthorized();
+
+        var property = await _context.Properties.FirstOrDefaultAsync(p => p.Id == id && !p.IsDeleted);
+        if (property == null) return NotFound(new { message = "Property not found." });
+
+        var media = new PropertyMedia
+        {
+            PropertyId = id,
+            MediaType = dto.MediaType,
+            Url = dto.Url,
+            StorageKey = dto.Url,
+            Category = dto.Category,
+            SortOrder = dto.SortOrder,
+            IsPrimary = dto.IsPrimary,
+            AiTags = dto.AiTags
+        };
+
+        _context.PropertyMedia.Add(media);
+        await _context.SaveChangesAsync();
+
+        return Ok(new { message = "Media attached successfully.", media.Id });
+    }
+
+    [HttpPost("{id:guid}/save")]
+    [Authorize]
+    public async Task<ActionResult<object>> SaveProperty(Guid id)
+    {
+        var userId = _currentUserService.UserId;
+        if (userId == null) return Unauthorized();
+
+        var existing = await _context.SavedProperties.FirstOrDefaultAsync(s => s.UserId == userId.Value && s.PropertyId == id);
+        if (existing != null)
+        {
+            return Ok(new { message = "Property already saved." });
+        }
+
+        _context.SavedProperties.Add(new SavedProperty
+        {
+            UserId = userId.Value,
+            PropertyId = id
+        });
+        await _context.SaveChangesAsync();
+
+        return Ok(new { message = "Property saved to favorites." });
+    }
+
+    [HttpDelete("{id:guid}/save")]
+    [Authorize]
+    public async Task<ActionResult<object>> UnsaveProperty(Guid id)
+    {
+        var userId = _currentUserService.UserId;
+        if (userId == null) return Unauthorized();
+
+        var existing = await _context.SavedProperties.FirstOrDefaultAsync(s => s.UserId == userId.Value && s.PropertyId == id);
+        if (existing != null)
+        {
+            _context.SavedProperties.Remove(existing);
+            await _context.SaveChangesAsync();
+        }
+
+        return Ok(new { message = "Property removed from favorites." });
+    }
+
+    [HttpGet("saved")]
+    [Authorize]
+    public async Task<ActionResult<object>> GetSavedProperties()
+    {
+        var userId = _currentUserService.UserId;
+        if (userId == null) return Unauthorized();
+
+        var saved = await _context.SavedProperties
+            .Include(s => s.Property)
+                .ThenInclude(p => p!.Media)
+            .Where(s => s.UserId == userId.Value && !s.Property!.IsDeleted)
+            .Select(s => new
+            {
+                s.Property!.Id,
+                s.Property.Title,
+                s.Property.Price,
+                s.Property.Currency,
+                s.Property.City,
+                s.Property.Area,
+                s.Property.Bedrooms,
+                s.Property.Bathrooms,
+                s.Property.LandArea,
+                s.Property.LandAreaUnit,
+                PrimaryImageUrl = s.Property.Media.OrderBy(m => m.SortOrder).Select(m => m.Url).FirstOrDefault() ?? "/placeholder-property.jpg",
+                SavedAtUtc = s.CreatedAtUtc
+            })
+            .ToListAsync();
+
+        return Ok(saved);
+    }
 }
