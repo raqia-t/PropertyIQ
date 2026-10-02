@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/PropertyIQ.Api/PropertyIQ.Api.csproj" />
+    <Project Path="src/PropertyIQ.Application/PropertyIQ.Application.csproj" />
+    <Project Path="src/PropertyIQ.Domain/PropertyIQ.Domain.csproj" />
+    <Project Path="src/PropertyIQ.Infrastructure/PropertyIQ.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/PropertyIQ.UnitTests/PropertyIQ.UnitTests.csproj" />
+  </Folder>
+</Solution>
