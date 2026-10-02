@@ -61,6 +61,9 @@ public static class DependencyInjection
         // AI Microservice Client
         services.AddHttpClient<IAiServiceClient, PropertyIQ.Infrastructure.Services.AiServiceClient>();
 
+        // Installment Schedule Calculator
+        services.AddSingleton<PropertyIQ.Application.Services.IInstallmentScheduleCalculator, PropertyIQ.Application.Services.InstallmentScheduleCalculator>();
+
         return services;
     }
 }

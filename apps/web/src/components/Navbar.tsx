@@ -30,6 +30,12 @@ export default function Navbar() {
             <Link href="/compare" className="hover:text-emerald-600 transition">
               Compare
             </Link>
+            <Link href="/developer" className="hover:text-emerald-600 transition">
+              Developer Hub
+            </Link>
+            <Link href="/my-bookings" className="hover:text-emerald-600 transition">
+              My Bookings
+            </Link>
             <Link href="/agent" className="text-emerald-700 font-semibold hover:text-emerald-800 transition">
               Agent Portal
             </Link>
