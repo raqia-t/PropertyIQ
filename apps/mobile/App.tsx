@@ -22,75 +22,133 @@ export default function App() {
       </View>
 
       <ScrollView style={styles.scrollArea} contentContainerStyle={styles.scrollContent}>
-        {/* Natural Language AI Search */}
-        <View style={styles.searchCard}>
-          <Text style={styles.searchLabel}>✨ Ask AI in plain English</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="e.g. 5 marla house under 3 crore near good schools..."
-            placeholderTextColor="#94a3b8"
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
-          <TouchableOpacity style={styles.searchButton}>
-            <Text style={styles.searchButtonText}>Search with AI Intelligence</Text>
-          </TouchableOpacity>
-        </View>
+        {activeTab === 'discover' && (
+          <>
+            {/* Natural Language AI Search */}
+            <View style={styles.searchCard}>
+              <Text style={styles.searchLabel}>✨ Ask AI in plain English</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="e.g. 5 marla house under 3 crore near good schools..."
+                placeholderTextColor="#94a3b8"
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+              />
+              <TouchableOpacity style={styles.searchButton}>
+                <Text style={styles.searchButtonText}>Search with AI Intelligence</Text>
+              </TouchableOpacity>
+            </View>
 
-        {/* Quick Toggles */}
-        <View style={styles.quickFilters}>
-          {['Houses', 'Plots', 'Apartments', 'Installment Projects'].map((filter, idx) => (
-            <TouchableOpacity key={idx} style={[styles.filterChip, idx === 0 && styles.filterChipActive]}>
-              <Text style={[styles.filterChipText, idx === 0 && styles.filterChipTextActive]}>{filter}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+            {/* Quick Toggles */}
+            <View style={styles.quickFilters}>
+              {['Houses', 'Plots', 'Apartments', 'Installments'].map((filter, idx) => (
+                <TouchableOpacity key={idx} style={[styles.filterChip, idx === 0 && styles.filterChipActive]}>
+                  <Text style={[styles.filterChipText, idx === 0 && styles.filterChipTextActive]}>{filter}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
 
-        {/* Field Verification Notice */}
-        <View style={styles.noticeCard}>
-          <Text style={styles.noticeTitle}>🛡️ Independent Property Verification</Text>
-          <Text style={styles.noticeBody}>
-            Request physical site inspection, boundary verification, and official records check before making token payments.
-          </Text>
-        </View>
+            {/* Field Verification Notice */}
+            <View style={styles.noticeCard}>
+              <Text style={styles.noticeTitle}>🛡️ Independent Property Verification</Text>
+              <Text style={styles.noticeBody}>
+                Request physical site inspection, boundary verification, and official records check before making token payments.
+              </Text>
+            </View>
 
-        {/* Featured Listing Card */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Featured Intelligence Profile</Text>
-        </View>
+            {/* Featured Listing Card */}
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Featured Intelligence Profile</Text>
+            </View>
 
-        <View style={styles.propertyCard}>
-          <View style={styles.cardImagePlaceholder}>
-            <Text style={styles.imagePlaceholderText}>📸 DHA Phase 6 - Modern House</Text>
-            <View style={styles.verifiedTag}>
-              <Text style={styles.verifiedTagText}>✓ Verified</Text>
+            <View style={styles.propertyCard}>
+              <View style={styles.cardImagePlaceholder}>
+                <Text style={styles.imagePlaceholderText}>📸 DHA Phase 6 - Modern House</Text>
+                <View style={styles.verifiedTag}>
+                  <Text style={styles.verifiedTagText}>✓ Verified</Text>
+                </View>
+              </View>
+
+              <View style={styles.cardContent}>
+                <Text style={styles.propertyPrice}>PKR 9.80 Crore</Text>
+                <Text style={styles.propertyTitle}>1 Kanal Modern Spanish Designer House</Text>
+                <Text style={styles.propertyLocation}>Block L, DHA Phase 6, Lahore</Text>
+
+                <View style={styles.specsRow}>
+                  <Text style={styles.specItem}>🛏️ 5 Beds</Text>
+                  <Text style={styles.specItem}>🚿 6 Baths</Text>
+                  <Text style={styles.specItem}>📐 1 Kanal</Text>
+                </View>
+
+                <View style={styles.aiBadge}>
+                  <Text style={styles.aiBadgeText}>AI Rent Estimate: PKR 3.8 - 4.4 Lakh/mo (5.0% Yield)</Text>
+                </View>
+              </View>
+            </View>
+          </>
+        )}
+
+        {activeTab === 'projects' && (
+          <View style={{ gap: 12 }}>
+            <Text style={styles.sectionTitle}>Off-Plan Projects & Installments</Text>
+            <View style={styles.propertyCard}>
+              <View style={styles.cardContent}>
+                <Text style={styles.propertyPrice}>From PKR 95 Lakh</Text>
+                <Text style={styles.propertyTitle}>Skyline Meadows Lahore</Text>
+                <Text style={styles.propertyLocation}>Raiwind Road, Lahore • LDA Approved</Text>
+                <View style={styles.aiBadge}>
+                  <Text style={styles.aiBadgeText}>3-Year Quarterly Plan • 10% Booking</Text>
+                </View>
+              </View>
             </View>
           </View>
+        )}
 
-          <View style={styles.cardContent}>
-            <Text style={styles.propertyPrice}>PKR 9.80 Crore</Text>
-            <Text style={styles.propertyTitle}>1 Kanal Modern Spanish Designer House</Text>
-            <Text style={styles.propertyLocation}>Block L, DHA Phase 6, Lahore</Text>
-
-            <View style={styles.specsRow}>
-              <Text style={styles.specItem}>🛏️ 5 Beds</Text>
-              <Text style={styles.specItem}>🚿 6 Baths</Text>
-              <Text style={styles.specItem}>📐 1 Kanal</Text>
-            </View>
-
-            <View style={styles.aiBadge}>
-              <Text style={styles.aiBadgeText}>AI Rent Estimate: PKR 3.8 - 4.4 Lakh/mo (5.0% Yield)</Text>
+        {activeTab === 'verify' && (
+          <View style={{ gap: 12 }}>
+            <Text style={styles.sectionTitle}>Verification Marketplace</Text>
+            <View style={styles.noticeCard}>
+              <Text style={styles.noticeTitle}>Active Case: VER-2026-0041</Text>
+              <Text style={styles.noticeBody}>
+                1 Kanal House in DHA Phase 6 • Enhanced Due Diligence • Report Ready
+              </Text>
             </View>
           </View>
-        </View>
+        )}
 
-        {/* Field Agent Mode Callout */}
-        <View style={styles.fieldAgentCard}>
-          <Text style={styles.fieldAgentTitle}>📍 Agent Field Operations Ready</Text>
-          <Text style={styles.fieldAgentSubtitle}>
-            Offline-first evidence capture queue configured for on-site GPS & photo inspections.
-          </Text>
-        </View>
+        {activeTab === 'field' && (
+          <View style={{ gap: 14 }}>
+            <View style={styles.noticeCard}>
+              <Text style={styles.noticeTitle}>📍 Specialist Offline Evidence Queue</Text>
+              <Text style={styles.noticeBody}>
+                3 site photos & GPS coordinates queued offline. Ready to sync with central server.
+              </Text>
+            </View>
+            <View style={styles.propertyCard}>
+              <View style={styles.cardContent}>
+                <Text style={{ fontSize: 13, fontWeight: '700', color: '#0f172a' }}>Case: VER-2026-0089 (Skyline Meadows)</Text>
+                <Text style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>Lat: 31.3654° N, Lng: 74.2238° E</Text>
+                <Text style={{ fontSize: 11, color: '#059669', fontWeight: '700', marginTop: 4 }}>Status: Queued for Sync (3 Evidence Items)</Text>
+                <TouchableOpacity style={[styles.searchButton, { marginTop: 10, backgroundColor: '#0284c7' }]}>
+                  <Text style={styles.searchButtonText}>Sync Evidence Now</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        )}
+
+        {activeTab === 'profile' && (
+          <View style={{ gap: 12 }}>
+            <Text style={styles.sectionTitle}>User Account & Preferences</Text>
+            <View style={styles.propertyCard}>
+              <View style={styles.cardContent}>
+                <Text style={{ fontSize: 14, fontWeight: '700', color: '#0f172a' }}>Zahid Hussain</Text>
+                <Text style={{ fontSize: 12, color: '#64748b' }}>Verification Specialist (PLRA Certified)</Text>
+                <Text style={{ fontSize: 11, color: '#059669', marginTop: 4 }}>Role: Specialist • Lahore Jurisdiction</Text>
+              </View>
+            </View>
+          </View>
+        )}
       </ScrollView>
 
       {/* Bottom Navigation */}
