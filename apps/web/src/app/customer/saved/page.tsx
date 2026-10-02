@@ -146,7 +146,7 @@ export default function CustomerSavedPage() {
             <div className="p-5 pt-0 border-t border-slate-100 flex items-center justify-between gap-3 mt-4">
               <Link
                 href={`/properties/${property.id}`}
-                className="flex-1 text-center bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs py-2.5 rounded-xl transition shadow-xs"
+                className="flex-1 text-center bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs py-2.5 rounded-xl transition shadow-sm"
               >
                 View Full Details
               </Link>

@@ -277,7 +277,7 @@ export default function CustomerActivityPage() {
                 </div>
                 <Link
                   href="/my-bookings"
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-xs transition"
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-sm transition"
                 >
                   Manage Installments
                 </Link>

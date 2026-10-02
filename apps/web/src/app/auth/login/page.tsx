@@ -93,10 +93,10 @@ export default function LoginPage() {
             <div
               key={p.role}
               onClick={() => handleSelectRole(p.role, p.redirect)}
-              className={`p-4 rounded-2xl border transition cursor-pointer flex items-center justify-between shadow-xs ${p.color}`}
+              className={`p-4 rounded-2xl border transition cursor-pointer flex items-center justify-between shadow-sm ${p.color}`}
             >
               <div className="flex items-center gap-3">
-                <div className="p-2 rounded-xl bg-white shadow-xs">
+                <div className="p-2 rounded-xl bg-white shadow-sm">
                   <Icon className="w-5 h-5" />
                 </div>
                 <div>
@@ -133,7 +133,7 @@ export default function LoginPage() {
 
           <button
             onClick={() => handleSelectRole("customer", "/")}
-            className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-xs transition"
+            className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-sm transition"
           >
             Send OTP & Sign In as Customer
           </button>

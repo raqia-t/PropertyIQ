@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useWorkspace, WORKSPACE_CONFIGS, WorkspaceRole } from "@/context/WorkspaceContext";
 import {
   ChevronDown,
@@ -11,11 +12,20 @@ import {
   ShieldCheck,
   Home,
   Briefcase,
-  X,
-  Sparkles
+  X
 } from "lucide-react";
 
+const roleDefaultRoutes: Record<WorkspaceRole, string> = {
+  guest: "/",
+  customer: "/",
+  agent: "/agent",
+  agency: "/agency",
+  developer: "/developer",
+  verifier: "/specialist",
+};
+
 export default function WorkspaceSwitcher() {
+  const router = useRouter();
   const { activeWorkspace, config, setWorkspace } = useWorkspace();
   const [isOpen, setIsOpen] = useState(false);
 
@@ -36,6 +46,12 @@ export default function WorkspaceSwitcher() {
     }
   };
 
+  const handleSelectWorkspace = (role: WorkspaceRole) => {
+    setWorkspace(role);
+    setIsOpen(false);
+    router.push(roleDefaultRoutes[role]);
+  };
+
   const rolesList: WorkspaceRole[] = ["guest", "customer", "agent", "agency", "developer", "verifier"];
 
   return (
@@ -48,7 +64,7 @@ export default function WorkspaceSwitcher() {
         <span className="flex items-center gap-1.5">
           {getWorkspaceIcon(activeWorkspace)}
           <span className="font-extrabold">{config.name}</span>
-          <span className="text-slate-400 font-normal hidden lg:inline">| {config.label}</span>
+          <span className="text-slate-400 font-normal hidden sm:inline">| {config.label}</span>
         </span>
         <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
       </button>
@@ -57,7 +73,7 @@ export default function WorkspaceSwitcher() {
       {isOpen && (
         <>
           <div
-            className="fixed inset-0 z-40 bg-slate-900/30 backdrop-blur-xs"
+            className="fixed inset-0 z-40 bg-slate-900/30 backdrop-blur-sm"
             onClick={() => setIsOpen(false)}
           />
           <div className="absolute right-0 mt-2 z-50 w-80 sm:w-96 bg-white rounded-2xl shadow-2xl border border-slate-200 p-4 space-y-3">
@@ -84,10 +100,7 @@ export default function WorkspaceSwitcher() {
                 return (
                   <div
                     key={role}
-                    onClick={() => {
-                      setWorkspace(role);
-                      setIsOpen(false);
-                    }}
+                    onClick={() => handleSelectWorkspace(role)}
                     className={`cursor-pointer rounded-xl p-2.5 transition flex items-start justify-between border ${
                       isSelected
                         ? "border-emerald-500 bg-emerald-50/40 ring-1 ring-emerald-500"
@@ -116,7 +129,7 @@ export default function WorkspaceSwitcher() {
             </div>
 
             <div className="pt-2 border-t border-slate-100 text-[11px] text-slate-500">
-              Simulates RBAC permissions and workspace-aware navigation.
+              Simulates RBAC permissions and navigates to the selected workspace.
             </div>
           </div>
         </>

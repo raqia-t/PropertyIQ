@@ -1,8 +1,7 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useWorkspace, WORKSPACE_CONFIGS, WorkspaceRole } from "@/context/WorkspaceContext";
 import {
   Home,
@@ -29,7 +28,17 @@ import {
   Briefcase
 } from "lucide-react";
 
+const roleDefaultRoutes: Record<WorkspaceRole, string> = {
+  guest: "/",
+  customer: "/",
+  agent: "/agent",
+  agency: "/agency",
+  developer: "/developer",
+  verifier: "/specialist",
+};
+
 export default function MobileBottomNav() {
+  const router = useRouter();
   const { activeWorkspace, config, setWorkspace, isMoreMenuOpen, setIsMoreMenuOpen } = useWorkspace();
   const pathname = usePathname();
 
@@ -90,6 +99,12 @@ export default function MobileBottomNav() {
     }
   };
 
+  const handleSelectWorkspace = (role: WorkspaceRole) => {
+    setWorkspace(role);
+    setIsMoreMenuOpen(false);
+    router.push(roleDefaultRoutes[role]);
+  };
+
   const rolesList: WorkspaceRole[] = ["guest", "customer", "agent", "agency", "developer", "verifier"];
 
   return (
@@ -139,7 +154,7 @@ export default function MobileBottomNav() {
             className="flex-1"
             onClick={() => setIsMoreMenuOpen(false)}
           />
-          <div className="bg-white rounded-t-3xl max-h-[85vh] overflow-y-auto p-6 space-y-6 shadow-2xl animate-in slide-in-from-bottom">
+          <div className="bg-white rounded-t-3xl max-h-[85vh] overflow-y-auto p-6 space-y-6 shadow-2xl transition-all">
             {/* Header */}
             <div className="flex items-start justify-between pb-3 border-b border-slate-100">
               <div>
@@ -192,7 +207,7 @@ export default function MobileBottomNav() {
                   return (
                     <div
                       key={role}
-                      onClick={() => setWorkspace(role)}
+                      onClick={() => handleSelectWorkspace(role)}
                       className={`cursor-pointer rounded-xl p-2.5 transition flex items-center justify-between border ${
                         isSelected
                           ? "border-emerald-600 bg-emerald-50 text-emerald-900 font-bold"
