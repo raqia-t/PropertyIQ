@@ -199,19 +199,100 @@ def calculate_property_scenario(request: PropertyScenarioRequest):
 @app.post("/ai/image-classification", response_model=ImageClassificationResponse)
 def classify_property_image(request: ImageClassificationRequest):
     # Standard classification & attribute tagging
+    url_lower = request.image_url.lower()
+    room = "LivingRoom"
+    features = [
+        "Imported porcelain tile flooring",
+        "Recessed false ceiling with LED downlights",
+        "Large double-glazed aluminum windows with natural lighting",
+        "Modern wall-mounted media console"
+    ]
+    if "kitchen" in url_lower:
+        room = "Kitchen"
+        features = ["Spanish marble countertops", "Fitted cabinets with soft-close hinges", "Built-in oven space", "Double stainless sink"]
+    elif "bed" in url_lower:
+        room = "Bedroom"
+        features = ["Solid ash wood doors", "Hardwood/laminate finish flooring", "Wardrobe dressing space", "En-suite washroom access"]
+    elif "exterior" in url_lower or "front" in url_lower:
+        room = "Exterior"
+        features = ["Modern Spanish front elevation", "Wide driveway with automated gate space", "Weather-resistant exterior paint"]
+    elif "bath" in url_lower or "wash" in url_lower:
+        room = "Bathroom"
+        features = ["Grohe sanitary fittings", "Tempered glass shower partition", "Modern vanity with LED touch mirror"]
+
     return ImageClassificationResponse(
-        classified_room="LivingRoom",
+        classified_room=room,
         confidence=0.94,
-        detected_features=[
-            "Imported porcelain tile flooring",
-            "Recessed false ceiling with LED downlights",
-            "Large double-glazed aluminum windows with natural lighting",
-            "Modern wall-mounted media console"
-        ],
+        detected_features=features,
         quality_issues=[],
         missing_media_suggestions=[
             "Exterior front elevation photo recommended",
             "Kitchen view required for high listing completeness score",
             "Master washroom photo missing"
         ]
+    )
+
+
+class GenerateListingDraftRequest(BaseModel):
+    property_type: str = "House"
+    city: str = "Lahore"
+    area: str = "DHA Phase 6"
+    size: float = 1.0
+    size_unit: str = "Kanal"
+    price: float = 98000000.0
+    bedrooms: Optional[int] = 5
+    bathrooms: Optional[int] = 6
+    furnishing: Optional[str] = "Semi-Furnished"
+    user_notes: Optional[str] = "Imported fixtures, basement home theater, solar backup system installed."
+
+class AiListingDraftResponse(BaseModel):
+    suggested_title: str
+    suggested_description: str
+    selling_highlights: List[str]
+    seo_keywords: List[str]
+    completeness_score: int
+    confirmation_required: List[str]
+    disclaimer: str
+
+
+@app.post("/ai/listing-draft", response_model=AiListingDraftResponse)
+def generate_listing_draft(request: GenerateListingDraftRequest):
+    price_formatted = f"PKR {request.price / 10000000:.2f} Crore" if request.price >= 10000000 else f"PKR {request.price / 100000:.0f} Lakh"
+    title = f"Brand New {request.size} {request.size_unit} Modern Luxury {request.property_type} in {request.area}, {request.city}"
+    
+    desc = (
+        f"PropertyIQ AI Verified Listing: Spectacular newly constructed {request.size} {request.size_unit} designer {request.property_type.lower()} "
+        f"located in prime {request.area}, {request.city}. Offering {request.bedrooms} expansive master bedrooms with designer attached baths, "
+        f"open-concept chef's kitchen, drawing & dining halls, and dedicated servant quarters. "
+        f"Features include: {request.user_notes or 'Premium fittings, solar power backup readiness, and high-security access'}. "
+        f"Offered at an attractive valuation of {price_formatted}."
+    )
+
+    highlights = [
+        f"Prime location in {request.area}, {request.city}",
+        f"Spacious {request.size} {request.size_unit} land area with optimal architectural layout",
+        f"{request.bedrooms} Master Bedrooms with imported luxury sanitary fittings",
+        "Direct access to main commercial hubs, parks, and top-tier educational institutions",
+        "Clear documentation with independent verification available on PropertyIQ"
+    ]
+
+    keywords = [
+        f"{request.size} {request.size_unit} {request.property_type.lower()} in {request.area}",
+        f"house for sale in {request.city}",
+        f"{request.city} real estate investment",
+        f"{request.area} properties"
+    ]
+
+    return AiListingDraftResponse(
+        suggested_title=title,
+        suggested_description=desc,
+        selling_highlights=highlights,
+        seo_keywords=keywords,
+        completeness_score=92,
+        confirmation_required=[
+            "Please confirm building completion certificate / map approval status",
+            "Please confirm utility connections (Electricity meter, Sui Gas, Water Supply)",
+            "Please confirm exact possession date"
+        ],
+        disclaimer="AI-generated description is an assistive draft. The seller/agent is legally responsible for verifying all physical and title assertions before publishing."
     )

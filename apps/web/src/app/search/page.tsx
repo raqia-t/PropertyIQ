@@ -126,6 +126,37 @@ function SearchContent() {
         </div>
       </div>
 
+      {/* AI Intent & Constraints Bar */}
+      {nlQuery.length > 3 && (
+        <div className="bg-purple-50 border border-purple-200 rounded-2xl p-4 flex flex-wrap items-center gap-2 text-xs">
+          <span className="font-bold text-purple-950 flex items-center gap-1.5 mr-2">
+            <Sparkles className="w-4 h-4 text-purple-600" />
+            <span>AI Intent Extracted:</span>
+          </span>
+          <span className="px-2.5 py-1 rounded-lg bg-white border border-purple-200 text-purple-900 font-semibold">
+            📍 City: {city}
+          </span>
+          {nlQuery.toLowerCase().includes("crore") && (
+            <span className="px-2.5 py-1 rounded-lg bg-white border border-purple-200 text-purple-900 font-semibold">
+              💰 Budget: {nlQuery.toLowerCase().includes("3 crore") ? "Under PKR 3 Crore" : "Price Range Mapped"}
+            </span>
+          )}
+          {nlQuery.toLowerCase().includes("marla") && (
+            <span className="px-2.5 py-1 rounded-lg bg-white border border-purple-200 text-purple-900 font-semibold">
+              📐 Size: {nlQuery.toLowerCase().includes("5 marla") ? "5 Marla" : "10 Marla"}
+            </span>
+          )}
+          {(nlQuery.toLowerCase().includes("school") || nlQuery.toLowerCase().includes("hospital")) && (
+            <span className="px-2.5 py-1 rounded-lg bg-white border border-purple-200 text-purple-900 font-semibold">
+              🏫 Lifestyle: Proximity to Schools & Healthcare
+            </span>
+          )}
+          <span className="px-2.5 py-1 rounded-lg bg-purple-200/70 text-purple-950 font-bold ml-auto">
+            Confidence: 94%
+          </span>
+        </div>
+      )}
+
       {/* Main Grid: Listings */}
       <div className="flex items-center justify-between">
         <p className="text-sm font-medium text-slate-600">

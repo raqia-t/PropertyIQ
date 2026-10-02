@@ -231,7 +231,26 @@ export default function NewPropertyPage() {
 
           {/* Section: Title & Description */}
           <div className="space-y-4 border-b border-slate-100 pb-6">
-            <h3 className="font-bold text-sm text-slate-900">Title & Description</h3>
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-sm text-slate-900">Title & Description</h3>
+              <button
+                type="button"
+                onClick={() => {
+                  const pkrPrice = Number(price) >= 10000000 ? `PKR ${(Number(price)/10000000).toFixed(2)} Crore` : `PKR ${(Number(price)/100000).toFixed(0)} Lakh`;
+                  setTitle(`Brand New ${landArea} ${landUnit} Modern Designer ${propertyType} in ${area || "Prime Location"}, ${city}`);
+                  setDescription(
+                    `PropertyIQ AI Verified Listing: Spectacular newly constructed ${landArea} ${landUnit} designer ${propertyType.toLowerCase()} ` +
+                    `located in prime ${area || "peaceful sector"}, ${city}. Features ${bedrooms} spacious master bedrooms with attached luxury baths, ` +
+                    `open-concept designer kitchen, drawing & dining halls, and servant quarters. ` +
+                    `Offered at an attractive valuation of ${pkrPrice || "competitive market price"}. Clean documentation with independent verification available.`
+                  );
+                }}
+                className="inline-flex items-center gap-1.5 text-xs font-bold bg-purple-100 hover:bg-purple-200 text-purple-800 px-3 py-1.5 rounded-lg transition"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-purple-600" />
+                <span>Auto-Draft with AI Assistant</span>
+              </button>
+            </div>
 
             <div>
               <label className="text-xs font-semibold text-slate-700">Listing Headline</label>

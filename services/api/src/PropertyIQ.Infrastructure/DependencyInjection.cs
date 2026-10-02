@@ -58,6 +58,9 @@ public static class DependencyInjection
         // Storage
         services.AddScoped<IFileStorageService, LocalFileStorageService>();
 
+        // AI Microservice Client
+        services.AddHttpClient<IAiServiceClient, PropertyIQ.Infrastructure.Services.AiServiceClient>();
+
         return services;
     }
 }
