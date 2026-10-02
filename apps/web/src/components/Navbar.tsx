@@ -30,6 +30,9 @@ export default function Navbar() {
             <Link href="/compare" className="hover:text-emerald-600 transition">
               Compare
             </Link>
+            <Link href="/demand-intelligence" className="hover:text-emerald-600 transition">
+              Market Intelligence
+            </Link>
             <Link href="/developer" className="hover:text-emerald-600 transition">
               Developer Hub
             </Link>

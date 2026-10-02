@@ -64,6 +64,9 @@ public static class DependencyInjection
         // Installment Schedule Calculator
         services.AddSingleton<PropertyIQ.Application.Services.IInstallmentScheduleCalculator, PropertyIQ.Application.Services.InstallmentScheduleCalculator>();
 
+        // Demand & Neighborhood Intelligence Service
+        services.AddScoped<PropertyIQ.Application.Services.IIntelligenceService, PropertyIQ.Application.Services.IntelligenceService>();
+
         return services;
     }
 }
