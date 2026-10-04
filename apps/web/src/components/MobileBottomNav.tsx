@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useWorkspace, WORKSPACE_CONFIGS, WorkspaceRole } from "@/context/WorkspaceContext";
+import { useLoading } from "@/context/LoadingContext";
 import {
   Home,
   Search,
@@ -40,6 +41,7 @@ const roleDefaultRoutes: Record<WorkspaceRole, string> = {
 export default function MobileBottomNav() {
   const router = useRouter();
   const { activeWorkspace, config, setWorkspace, isMoreMenuOpen, setIsMoreMenuOpen } = useWorkspace();
+  const { startLoading } = useLoading();
   const pathname = usePathname();
 
   const getNavIcon = (iconName: string, active: boolean) => {
@@ -102,6 +104,7 @@ export default function MobileBottomNav() {
   const handleSelectWorkspace = (role: WorkspaceRole) => {
     setWorkspace(role);
     setIsMoreMenuOpen(false);
+    startLoading(`Loading ${WORKSPACE_CONFIGS[role].name} Workspace...`);
     router.push(roleDefaultRoutes[role]);
   };
 

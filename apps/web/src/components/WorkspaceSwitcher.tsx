@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useWorkspace, WORKSPACE_CONFIGS, WorkspaceRole } from "@/context/WorkspaceContext";
+import { useLoading } from "@/context/LoadingContext";
 import {
   ChevronDown,
   Check,
@@ -27,6 +28,7 @@ const roleDefaultRoutes: Record<WorkspaceRole, string> = {
 export default function WorkspaceSwitcher() {
   const router = useRouter();
   const { activeWorkspace, config, setWorkspace } = useWorkspace();
+  const { startLoading } = useLoading();
   const [isOpen, setIsOpen] = useState(false);
 
   const getWorkspaceIcon = (role: WorkspaceRole) => {
@@ -49,6 +51,7 @@ export default function WorkspaceSwitcher() {
   const handleSelectWorkspace = (role: WorkspaceRole) => {
     setWorkspace(role);
     setIsOpen(false);
+    startLoading(`Loading ${WORKSPACE_CONFIGS[role].name} Workspace...`);
     router.push(roleDefaultRoutes[role]);
   };
 

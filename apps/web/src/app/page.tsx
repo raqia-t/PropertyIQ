@@ -2,11 +2,16 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Search, Sparkles, ShieldCheck, Building2, MapPin, CheckCircle, ArrowRight, TrendingUp } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useLoading } from "@/context/LoadingContext";
+import { Search, Sparkles, ShieldCheck, Building2, MapPin, CheckCircle, ArrowRight, TrendingUp, Loader2 } from "lucide-react";
 
 export default function HomePage() {
+  const router = useRouter();
+  const { startLoading } = useLoading();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCity, setSelectedCity] = useState("Lahore");
+  const [isSearching, setIsSearching] = useState(false);
 
   const sampleSuggestions = [
     "5 marla house in Lahore under PKR 3 crore near good schools",
@@ -14,6 +19,14 @@ export default function HomePage() {
     "Plot with 3-year installment plan near Raiwind Road",
     "Apartment in Islamabad with high rental yield"
   ];
+
+  const handleSearch = (e?: React.FormEvent, customQuery?: string) => {
+    if (e) e.preventDefault();
+    const query = customQuery !== undefined ? customQuery : searchQuery;
+    setIsSearching(true);
+    startLoading(`AI Search: Finding properties in ${selectedCity}...`);
+    router.push(`/search?city=${encodeURIComponent(selectedCity)}&q=${encodeURIComponent(query)}`);
+  };
 
   return (
     <div className="space-y-16 pb-20">
@@ -38,12 +51,16 @@ export default function HomePage() {
 
           {/* AI Search Box */}
           <div className="max-w-3xl mx-auto pt-4">
-            <div className="bg-white rounded-2xl p-2 shadow-2xl flex flex-col md:flex-row items-center gap-2 border border-slate-200 text-slate-900">
+            <form
+              onSubmit={(e) => handleSearch(e)}
+              className="bg-white rounded-2xl p-2 shadow-2xl flex flex-col md:flex-row items-center gap-2 border border-slate-200 text-slate-900"
+            >
               <div className="flex items-center gap-2 px-3 py-2 border-b md:border-b-0 md:border-r border-slate-200 w-full md:w-auto">
                 <MapPin className="w-5 h-5 text-emerald-600 shrink-0" />
                 <select
                   value={selectedCity}
                   onChange={(e) => setSelectedCity(e.target.value)}
+                  disabled={isSearching}
                   className="bg-transparent font-medium text-sm focus:outline-none cursor-pointer"
                 >
                   <option value="Lahore">Lahore</option>
@@ -58,20 +75,31 @@ export default function HomePage() {
                 <input
                   type="text"
                   value={searchQuery}
+                  disabled={isSearching}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Describe in plain English: '5 marla house under 3 crore near hospital and schools...'"
                   className="w-full text-sm font-normal focus:outline-none text-slate-800 placeholder-slate-400"
                 />
               </div>
 
-              <Link
-                href={`/search?city=${selectedCity}&q=${encodeURIComponent(searchQuery)}`}
-                className="w-full md:w-auto flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm px-6 py-3 rounded-xl transition shadow-md"
+              <button
+                type="submit"
+                disabled={isSearching}
+                className="w-full md:w-auto flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm px-6 py-3 rounded-xl transition shadow-md disabled:opacity-70 shrink-0"
               >
-                <Search className="w-4 h-4" />
-                <span>AI Search</span>
-              </Link>
-            </div>
+                {isSearching ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Searching...</span>
+                  </>
+                ) : (
+                  <>
+                    <Search className="w-4 h-4" />
+                    <span>AI Search</span>
+                  </>
+                )}
+              </button>
+            </form>
 
             {/* Quick Chips */}
             <div className="mt-4 flex flex-wrap items-center justify-center gap-2 text-xs">
@@ -79,8 +107,12 @@ export default function HomePage() {
               {sampleSuggestions.map((suggestion, idx) => (
                 <button
                   key={idx}
-                  onClick={() => setSearchQuery(suggestion)}
-                  className="bg-white/10 hover:bg-white/20 text-slate-200 px-3 py-1 rounded-full border border-white/10 transition text-left"
+                  disabled={isSearching}
+                  onClick={() => {
+                    setSearchQuery(suggestion);
+                    handleSearch(undefined, suggestion);
+                  }}
+                  className="bg-white/10 hover:bg-white/20 text-slate-200 px-3 py-1 rounded-full border border-white/10 transition text-left disabled:opacity-50"
                 >
                   {suggestion}
                 </button>
@@ -89,6 +121,7 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
 
       {/* 4 Core Pillars */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
