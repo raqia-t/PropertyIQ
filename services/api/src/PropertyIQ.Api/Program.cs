@@ -1,5 +1,8 @@
+using System.IO;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
 using Microsoft.OpenApi;
 using PropertyIQ.Api.Services;
@@ -19,8 +22,11 @@ Log.Logger = new LoggerConfiguration()
 
 builder.Host.UseSerilog();
 
-// Add services
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
+    });
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 
@@ -96,6 +102,30 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseCors("AllowAllOrigins");
+
+var storagePath = Path.GetFullPath(
+    builder.Configuration["Storage:LocalPath"]
+    ?? Path.Combine(Directory.GetCurrentDirectory(), "storage_data"));
+Directory.CreateDirectory(storagePath);
+Directory.CreateDirectory(Path.Combine(storagePath, "public"));
+Directory.CreateDirectory(Path.Combine(storagePath, "private"));
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(storagePath),
+    RequestPath = "/media-files",
+    OnPrepareResponse = ctx =>
+    {
+        // Never expose private evidence via static file middleware
+        var path = ctx.Context.Request.Path.Value ?? "";
+        if (path.Contains("/private/", StringComparison.OrdinalIgnoreCase))
+        {
+            ctx.Context.Response.StatusCode = StatusCodes.Status404NotFound;
+            ctx.Context.Response.ContentLength = 0;
+            ctx.Context.Response.Body = Stream.Null;
+        }
+    }
+});
+
 app.UseAuthentication();
 app.UseAuthorization();
 

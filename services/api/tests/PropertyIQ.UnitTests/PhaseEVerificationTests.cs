@@ -1,5 +1,7 @@
 using System;
+using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -17,25 +19,62 @@ public class PhaseEVerificationTests
 {
     private class FakeCurrentUserService : ICurrentUserService
     {
-        public Guid? UserId { get; set; } = Guid.NewGuid();
+        public Guid? UserId { get; set; }
         public string? UserEmail { get; set; } = "specialist@propertyiq.pk";
         public string? UserRole { get; set; } = "Specialist";
     }
 
-    private ApplicationDbContext CreateInMemoryDbContext()
+    private class FakeFileStorageService : IFileStorageService
+    {
+        public Task<string> UploadFileAsync(
+            string fileName,
+            Stream content,
+            string contentType,
+            bool isPrivate = false,
+            CancellationToken cancellationToken = default)
+            => Task.FromResult($"private/{Guid.NewGuid()}_{fileName}");
+
+        public Task<Stream?> GetFileAsync(string storageKey, CancellationToken cancellationToken = default)
+            => Task.FromResult<Stream?>(null);
+
+        public Task DeleteFileAsync(string storageKey, CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
+    }
+
+    private ApplicationDbContext CreateInMemoryDbContext(FakeCurrentUserService currentUser)
     {
         var options = new DbContextOptionsBuilder<ApplicationDbContext>()
             .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
             .Options;
-        return new ApplicationDbContext(options, new FakeCurrentUserService());
+        return new ApplicationDbContext(options, currentUser);
     }
+
+    private static VerificationController CreateController(
+        ApplicationDbContext context,
+        FakeCurrentUserService currentUser) =>
+        new(context, currentUser, new FakeFileStorageService());
 
     [Fact]
     public async Task CreateCase_GeneratesStandardPakistanChecklistAndFee()
     {
-        using var context = CreateInMemoryDbContext();
-        var currentUserService = new FakeCurrentUserService();
-        var controller = new VerificationController(context, currentUserService);
+        var currentUserService = new FakeCurrentUserService
+        {
+            UserRole = "Customer"
+        };
+        using var context = CreateInMemoryDbContext(currentUserService);
+
+        var customer = new User
+        {
+            FullName = "Test Buyer",
+            Email = "buyer@test.pk",
+            Role = UserRole.Customer,
+            PasswordHash = "x"
+        };
+        context.Users.Add(customer);
+        await context.SaveChangesAsync();
+        currentUserService.UserId = customer.Id;
+
+        var controller = CreateController(context, currentUserService);
 
         var property = new Property
         {
@@ -51,7 +90,8 @@ public class PhaseEVerificationTests
         {
             PropertyId = property.Id,
             ServiceLevel = VerificationLevel.EnhancedDueDiligence,
-            CustomerNotes = "Need full title chain check before paying token deposit."
+            CustomerNotes = "Need full title chain check before paying token deposit.",
+            AcknowledgeFee = true
         };
 
         var result = await controller.CreateCase(requestDto);
@@ -64,11 +104,11 @@ public class PhaseEVerificationTests
             .FirstOrDefaultAsync(c => c.PropertyId == property.Id);
 
         Assert.NotNull(vCase);
-        Assert.Equal(60000m, vCase.Fee); // Fee for Enhanced Due Diligence
+        Assert.Equal(60000m, vCase.Fee);
         Assert.Equal(VerificationCaseStatus.Requested, vCase.Status);
+        Assert.True(vCase.IsPaid);
         Assert.True(vCase.ChecklistItems.Count >= 7);
 
-        // Verify standard categories present
         Assert.Contains(vCase.ChecklistItems, ci => ci.Category == "Identity");
         Assert.Contains(vCase.ChecklistItems, ci => ci.Category == "OwnershipEvidence");
         Assert.Contains(vCase.ChecklistItems, ci => ci.Category == "MutationTransfer");
@@ -77,28 +117,35 @@ public class PhaseEVerificationTests
     }
 
     [Fact]
-    public async Task AssignSpecialist_TransitionsStatusToInProgress()
+    public async Task AssignSpecialist_TransitionsStatusToAssigned()
     {
-        using var context = CreateInMemoryDbContext();
         var currentUserService = new FakeCurrentUserService();
-        var controller = new VerificationController(context, currentUserService);
+        using var context = CreateInMemoryDbContext(currentUserService);
 
         var specialist = new User
         {
             FullName = "Zahid Hussain (PLRA Specialist)",
             Email = "zahid@propertyiq.pk",
-            Role = UserRole.Specialist
+            Role = UserRole.Specialist,
+            PasswordHash = "x"
         };
+        context.Users.Add(specialist);
+        await context.SaveChangesAsync();
+        currentUserService.UserId = specialist.Id;
+
         var vCase = new VerificationCase
         {
             ServiceLevel = VerificationLevel.RecordCheck,
             Fee = 35000m,
-            Status = VerificationCaseStatus.Requested
+            Status = VerificationCaseStatus.Requested,
+            IsPaid = true,
+            PaidAtUtc = DateTime.UtcNow,
+            CustomerId = specialist.Id
         };
-        context.Users.Add(specialist);
         context.VerificationCases.Add(vCase);
         await context.SaveChangesAsync();
 
+        var controller = CreateController(context, currentUserService);
         var result = await controller.AssignSpecialist(vCase.Id, new AssignSpecialistDto
         {
             SpecialistId = specialist.Id,
@@ -110,16 +157,26 @@ public class PhaseEVerificationTests
         var updatedCase = await context.VerificationCases.FindAsync(vCase.Id);
         Assert.NotNull(updatedCase);
         Assert.Equal(specialist.Id, updatedCase.AssignedSpecialistId);
-        Assert.Equal(VerificationCaseStatus.InProgress, updatedCase.Status);
+        Assert.Equal(VerificationCaseStatus.Assigned, updatedCase.Status);
         Assert.NotNull(updatedCase.AssignedAtUtc);
     }
 
     [Fact]
     public async Task UpdateChecklistItem_And_GenerateReport_PublishesImmutableReportAndVerifiesProperty()
     {
-        using var context = CreateInMemoryDbContext();
         var currentUserService = new FakeCurrentUserService();
-        var controller = new VerificationController(context, currentUserService);
+        using var context = CreateInMemoryDbContext(currentUserService);
+
+        var specialist = new User
+        {
+            FullName = "Specialist",
+            Email = "specialist@propertyiq.pk",
+            Role = UserRole.Specialist,
+            PasswordHash = "x"
+        };
+        context.Users.Add(specialist);
+        await context.SaveChangesAsync();
+        currentUserService.UserId = specialist.Id;
 
         var property = new Property
         {
@@ -131,7 +188,11 @@ public class PhaseEVerificationTests
             Property = property,
             ServiceLevel = VerificationLevel.PropertySiteVisit,
             Fee = 25000m,
-            Status = VerificationCaseStatus.InProgress
+            Status = VerificationCaseStatus.Assigned,
+            AssignedSpecialistId = specialist.Id,
+            IsPaid = true,
+            PaidAtUtc = DateTime.UtcNow,
+            CustomerId = specialist.Id
         };
         var checkItem = new VerificationChecklistItem
         {
@@ -146,7 +207,8 @@ public class PhaseEVerificationTests
         context.VerificationChecklistItems.Add(checkItem);
         await context.SaveChangesAsync();
 
-        // 1. Specialist updates checklist item to Pass
+        var controller = CreateController(context, currentUserService);
+
         var updateResult = await controller.UpdateChecklistItem(vCase.Id, checkItem.Id, new UpdateChecklistItemDto
         {
             Result = ChecklistResult.Pass,
@@ -154,7 +216,6 @@ public class PhaseEVerificationTests
         });
         Assert.IsType<OkObjectResult>(updateResult.Result);
 
-        // 2. Generate final report
         var reportResult = await controller.GenerateReport(vCase.Id, new GenerateReportDto
         {
             Summary = "Property boundaries, registry records, and LDA clearance successfully verified.",
@@ -178,7 +239,6 @@ public class PhaseEVerificationTests
         Assert.True(report.IsImmutable);
         Assert.Contains("does not constitute a government title certificate", report.Limitations);
 
-        // Property status transitioned to Verified
         Assert.NotNull(updatedCase.Property);
         Assert.Equal(PropertyVerificationStatus.Verified, updatedCase.Property.VerificationStatus);
     }

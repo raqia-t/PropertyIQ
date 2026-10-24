@@ -28,6 +28,14 @@ public class VerificationCase : BaseEntity, IAuditableEntity
     public DateTime? CompletedAtUtc { get; set; }
     public int SLAHours { get; set; } = 48;
 
+    /// <summary>Demo fee acknowledgment — real PSP can replace this later.</summary>
+    public bool IsPaid { get; set; }
+    public DateTime? PaidAtUtc { get; set; }
+
+    public DateTime? ScheduledVisitAtUtc { get; set; }
+    public string? VisitNotes { get; set; }
+    public string? CancelReason { get; set; }
+
     public Guid? CreatedBy { get; set; }
     public Guid? UpdatedBy { get; set; }
 

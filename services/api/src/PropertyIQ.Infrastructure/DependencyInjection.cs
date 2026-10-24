@@ -58,14 +58,30 @@ public static class DependencyInjection
         // Storage
         services.AddScoped<IFileStorageService, LocalFileStorageService>();
 
-        // AI Microservice Client
-        services.AddHttpClient<IAiServiceClient, PropertyIQ.Infrastructure.Services.AiServiceClient>();
+        // AI Microservice Client (Phase 5: long timeout for local Ollama NL parse)
+        services.AddHttpClient<IAiServiceClient, PropertyIQ.Infrastructure.Services.AiServiceClient>((sp, client) =>
+        {
+            var config = sp.GetRequiredService<IConfiguration>();
+            var seconds = 150;
+            if (int.TryParse(config["AiService:TimeoutSeconds"], out var configured) && configured > 0)
+                seconds = configured;
+            client.Timeout = TimeSpan.FromSeconds(seconds);
+        });
 
         // Installment Schedule Calculator
         services.AddSingleton<PropertyIQ.Application.Services.IInstallmentScheduleCalculator, PropertyIQ.Application.Services.InstallmentScheduleCalculator>();
 
-        // Demand & Neighborhood Intelligence Service
+        // Demand & Neighborhood Intelligence Service (+ live POI enrichment)
+        services.AddHttpClient("neighborhood-poi", client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(40);
+            client.DefaultRequestHeaders.TryAddWithoutValidation("Accept", "application/json");
+        });
+        services.AddScoped<INeighborhoodPoiProvider, PropertyIQ.Infrastructure.Services.NeighborhoodPoiProvider>();
         services.AddScoped<PropertyIQ.Application.Services.IIntelligenceService, PropertyIQ.Application.Services.IntelligenceService>();
+
+        // Phase B — live inventory comps for rent/valuation scenarios
+        services.AddScoped<PropertyIQ.Application.Services.IPropertyCompsService, PropertyIQ.Application.Services.PropertyCompsService>();
 
         return services;
     }

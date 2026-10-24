@@ -1,0 +1,132 @@
+{
+  "type": "object",
+  "properties": {
+    "raw_query": {
+      "type": "string"
+    },
+    "city": {
+      "type": "string",
+      "enum": [
+        "Lahore",
+        "Islamabad",
+        "Rawalpindi",
+        "Karachi",
+        "Faisalabad",
+        "Multan",
+        "Peshawar"
+      ]
+    },
+    "area": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "property_type": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "enum": [
+        null,
+        "House",
+        "ApartmentFlat",
+        "Plot",
+        "CommercialShop",
+        "Office",
+        "Warehouse",
+        "Farmhouse",
+        "AgriculturalLand",
+        "Building",
+        "RoomPortion",
+        "Other"
+      ]
+    },
+    "purpose": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "enum": [
+        null,
+        "Sale",
+        "Rent"
+      ]
+    },
+    "min_price": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "description": "Absolute PKR"
+    },
+    "max_price": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "description": "Absolute PKR"
+    },
+    "bedrooms": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0,
+      "maximum": 20
+    },
+    "land_area": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "land_area_unit": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "enum": [
+        null,
+        "Marla",
+        "Kanal",
+        "SqYards",
+        "SqFt",
+        "Acres"
+      ]
+    },
+    "lifestyle_preferences": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "investment_intent": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "confidence_score": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    }
+  },
+  "required": [
+    "raw_query",
+    "city",
+    "area",
+    "property_type",
+    "purpose",
+    "min_price",
+    "max_price",
+    "bedrooms",
+    "land_area",
+    "land_area_unit",
+    "lifestyle_preferences",
+    "investment_intent",
+    "confidence_score"
+  ],
+  "additionalProperties": false
+}

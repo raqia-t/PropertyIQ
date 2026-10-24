@@ -71,6 +71,11 @@ public class UpdateInventoryUnitStatusDto
     public string? Reason { get; set; }
 }
 
+public class ArchiveProjectDto
+{
+    public bool Archived { get; set; } = true;
+}
+
 public class ReserveUnitRequestDto
 {
     public Guid UnitId { get; set; }
@@ -82,6 +87,56 @@ public class CreateBookingRequestDto
     public Guid UnitId { get; set; }
     public Guid? PaymentPlanId { get; set; }
     public decimal TotalAgreedPrice { get; set; }
+    public int DurationMonths { get; set; } = 36;
+    public PaymentFrequency Frequency { get; set; } = PaymentFrequency.Quarterly;
+    public decimal BookingPercentage { get; set; } = 10m;
+    public decimal DownPaymentPercentage { get; set; } = 15m;
+    public decimal PossessionPercentage { get; set; } = 15m;
+}
+
+public class UpdateProjectDto
+{
+    public string? Name { get; set; }
+    public string? Description { get; set; }
+    public string? ProjectType { get; set; }
+    public string? Province { get; set; }
+    public string? City { get; set; }
+    public string? Area { get; set; }
+    public string? Address { get; set; }
+    public double? Latitude { get; set; }
+    public double? Longitude { get; set; }
+    public string? RegulatoryAuthority { get; set; }
+    public string? ApprovalReferenceNumber { get; set; }
+    public string? ApprovalStatus { get; set; }
+    public string? ApprovalDocumentUrl { get; set; }
+    public DateTime? LaunchDate { get; set; }
+    public DateTime? ExpectedCompletionDate { get; set; }
+}
+
+public class UpdateBookingStatusDto
+{
+    public BookingStatus Status { get; set; }
+    public string? Reason { get; set; }
+}
+
+public class CreatePaymentPlanDto
+{
+    public Guid ProjectId { get; set; }
+    public string Name { get; set; } = "Standard Payment Plan";
+    public decimal TotalPrice { get; set; }
+    public string Currency { get; set; } = "PKR";
+    public int DurationMonths { get; set; } = 36;
+    public PaymentFrequency Frequency { get; set; } = PaymentFrequency.Quarterly;
+    public decimal BookingPercentage { get; set; } = 10m;
+    public decimal DownPaymentPercentage { get; set; } = 15m;
+    public decimal PossessionPercentage { get; set; } = 15m;
+}
+
+public class UpdatePaymentPlanDto
+{
+    public string Name { get; set; } = "Standard Payment Plan";
+    public decimal TotalPrice { get; set; }
+    public string Currency { get; set; } = "PKR";
     public int DurationMonths { get; set; } = 36;
     public PaymentFrequency Frequency { get; set; } = PaymentFrequency.Quarterly;
     public decimal BookingPercentage { get; set; } = 10m;

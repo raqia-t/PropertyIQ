@@ -24,17 +24,40 @@ public class IntelligenceController : ControllerBase
         return Ok(gaps);
     }
 
-    [HttpGet("neighborhood/{city}/{area}")]
-    public async Task<ActionResult<NeighborhoodIntelligenceDto>> GetNeighborhoodIntelligence(string city, string area)
+    /// <summary>Preferred: query-string city/area (+ optional pin for tighter POIs).</summary>
+    [HttpGet("neighborhood")]
+    public async Task<ActionResult<NeighborhoodIntelligenceDto>> GetNeighborhoodIntelligence(
+        [FromQuery] string city,
+        [FromQuery] string area,
+        [FromQuery] double? lat = null,
+        [FromQuery] double? lng = null)
     {
-        var intelligence = await _intelligenceService.GetNeighborhoodIntelligenceAsync(city, area);
+        if (string.IsNullOrWhiteSpace(city) || string.IsNullOrWhiteSpace(area))
+            return BadRequest(new { message = "city and area are required." });
+
+        var intelligence = await _intelligenceService.GetNeighborhoodIntelligenceAsync(
+            city, area, lat, lng);
+        return Ok(intelligence);
+    }
+
+    [HttpGet("neighborhood/{city}/{area}")]
+    public async Task<ActionResult<NeighborhoodIntelligenceDto>> GetNeighborhoodIntelligenceByPath(
+        string city,
+        string area,
+        [FromQuery] double? lat = null,
+        [FromQuery] double? lng = null)
+    {
+        var intelligence = await _intelligenceService.GetNeighborhoodIntelligenceAsync(
+            city, area, lat, lng);
         return Ok(intelligence);
     }
 
     [HttpGet("developer-demand")]
-    public async Task<ActionResult<DeveloperDemandRadarDto>> GetDeveloperDemandRadar([FromQuery] string? city)
+    public async Task<ActionResult<DeveloperDemandRadarDto>> GetDeveloperDemandRadar(
+        [FromQuery] string? city,
+        [FromQuery] Guid? developerOrgId = null)
     {
-        var radar = await _intelligenceService.GetDeveloperDemandRadarAsync(city);
+        var radar = await _intelligenceService.GetDeveloperDemandRadarAsync(city, developerOrgId);
         return Ok(radar);
     }
 

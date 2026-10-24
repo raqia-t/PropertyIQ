@@ -48,18 +48,23 @@ PropertyIQ/
 ### Prerequisites
 - .NET 10 SDK
 - Node.js 22+ & npm
-- Python 3.13
+- Python 3.13+
 - PostgreSQL 16+
+- [Ollama](https://ollama.com) (optional but recommended for hybrid NL search) with `qwen2.5:7b`
 
 ### Run with PowerShell
 ```powershell
 .\start-dev.ps1
 ```
 
+`start-dev.ps1` brings services up in order: Postgres → **Ollama** → AI (FastAPI) → API → Web. If Ollama is installed but not running, the script starts `ollama serve`. Without Ollama, the AI service still runs and falls back to the rule parser.
+
 ### Access Services
 - **Web App:** [http://localhost:3000](http://localhost:3000)
 - **API Swagger Documentation:** [http://localhost:5000/swagger](http://localhost:5000/swagger)
-- **AI Microservice Docs:** [http://localhost:8000/docs](http://localhost:8000/docs)
+- **AI Microservice Docs:** [http://localhost:8000/docs](http://localhost:8000/docs) (falls back to `:8001` / `:8002` if busy)
+- **Ollama:** [http://127.0.0.1:11434](http://127.0.0.1:11434)
+- **Parse ops log:** `services/ai/logs/search-parser.jsonl`
 
 ### Pre-Seeded Test Credentials
 | Role | Email | Password |

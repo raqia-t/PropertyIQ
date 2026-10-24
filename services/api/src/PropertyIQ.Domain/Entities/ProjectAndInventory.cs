@@ -31,11 +31,15 @@ public class Project : BaseEntity, IAuditableEntity
     public DateTime? LaunchDate { get; set; }
     public DateTime? ExpectedCompletionDate { get; set; }
 
+    /// <summary>Archived schemes stay in DB for bookings/NOC history but drop out of active catalogs.</summary>
+    public bool IsArchived { get; set; }
+
     public Guid? CreatedBy { get; set; }
     public Guid? UpdatedBy { get; set; }
 
     public ICollection<ProjectPhase> Phases { get; set; } = new List<ProjectPhase>();
     public ICollection<InventoryUnit> InventoryUnits { get; set; } = new List<InventoryUnit>();
+    public ICollection<ProjectNocDocument> NocDocuments { get; set; } = new List<ProjectNocDocument>();
 }
 
 public class ProjectPhase : BaseEntity

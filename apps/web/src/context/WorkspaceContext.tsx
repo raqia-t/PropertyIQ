@@ -1,6 +1,8 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
+import { useAuth } from "@/context/AuthContext";
+import { canAccessWorkspace, defaultWorkspaceForBackendRole } from "@/lib/roles";
 
 export type WorkspaceRole = "guest" | "customer" | "agent" | "agency" | "developer" | "verifier";
 
@@ -24,7 +26,7 @@ export interface WorkspaceConfig {
   mobileBottomNav: Array<{ label: string; href: string; iconName: string }>;
 }
 
-export const WORKSPACE_CONFIGS: Record<WorkspaceRole, WorkspaceConfig> = {
+const BASE_CONFIGS: Record<WorkspaceRole, WorkspaceConfig> = {
   guest: {
     id: "guest",
     name: "Guest",
@@ -39,7 +41,7 @@ export const WORKSPACE_CONFIGS: Record<WorkspaceRole, WorkspaceConfig> = {
     ],
     secondaryNav: [
       { label: "Sign In", href: "/auth/login" },
-      { label: "List Property", href: "/properties/new" },
+      { label: "Sign Up", href: "/auth/signup" },
       { label: "Compare Properties", href: "/compare" },
     ],
     mobileBottomNav: [
@@ -53,44 +55,45 @@ export const WORKSPACE_CONFIGS: Record<WorkspaceRole, WorkspaceConfig> = {
     id: "customer",
     name: "Customer",
     label: "Buyer & Tenant Portal",
-    tagline: "Usman Farooq • Investor / Buyer",
+    tagline: "Explore, save, and track your property journey",
     badgeColor: "bg-emerald-50 text-emerald-800 border-emerald-300",
     orgName: "Verified Buyer",
-    userTitle: "Usman Farooq",
+    userTitle: "Customer",
     primaryNav: [
       { label: "Home", href: "/" },
       { label: "Buy", href: "/search?purpose=1" },
       { label: "Rent", href: "/search?purpose=2" },
       { label: "Projects", href: "/projects" },
       { label: "Saved", href: "/customer/saved" },
-      { label: "My Activity", href: "/customer/activity" },
-      { label: "Profile", href: "/customer/profile" },
     ],
     secondaryNav: [
+      { label: "My Activity", href: "/customer/activity" },
       { label: "My Bookings & Installments", href: "/my-bookings" },
       { label: "Verification Requests", href: "/verification" },
       { label: "Compare Shortlist", href: "/compare" },
+      { label: "Profile", href: "/customer/profile" },
     ],
     mobileBottomNav: [
       { label: "Home", href: "/", iconName: "Home" },
       { label: "Buy", href: "/search?purpose=1", iconName: "Search" },
       { label: "Projects", href: "/projects", iconName: "Building2" },
-      { label: "Activity", href: "/customer/activity", iconName: "Activity" },
+      { label: "Saved", href: "/customer/saved", iconName: "Activity" },
     ],
   },
   agent: {
     id: "agent",
     name: "Agent",
     label: "Agent Workspace",
-    tagline: "Kamran Ali • Lahore Real Estate",
+    tagline: "Listings, leads, visits & client pipeline",
     badgeColor: "bg-blue-50 text-blue-800 border-blue-300",
-    orgName: "Lahore Properties Network",
-    userTitle: "Kamran Ali (Licensed Agent)",
+    orgName: "Agency Partner",
+    userTitle: "Licensed Agent",
     primaryNav: [
       { label: "Dashboard", href: "/agent" },
       { label: "Properties", href: "/agent/properties" },
-      { label: "Leads", href: "/agent/leads", badge: "3 New" },
+      { label: "Leads", href: "/agent/leads" },
       { label: "Clients", href: "/agent/clients" },
+      { label: "Visit Calendar", href: "/agent/visit-calendar" },
       { label: "Visits", href: "/agent/visits" },
       { label: "Verification", href: "/agent/verification" },
       { label: "Analytics", href: "/agent/analytics" },
@@ -104,16 +107,16 @@ export const WORKSPACE_CONFIGS: Record<WorkspaceRole, WorkspaceConfig> = {
       { label: "Dashboard", href: "/agent", iconName: "LayoutDashboard" },
       { label: "Properties", href: "/agent/properties", iconName: "Building" },
       { label: "Leads", href: "/agent/leads", iconName: "Users" },
-      { label: "Visits", href: "/agent/visits", iconName: "Calendar" },
+      { label: "Calendar", href: "/agent/visit-calendar", iconName: "Calendar" },
     ],
   },
   agency: {
     id: "agency",
     name: "Agency",
     label: "Agency Enterprise Workspace",
-    tagline: "Premier Realty Group • 14 Active Brokers",
+    tagline: "Team roster, firm listings & brokerage ops",
     badgeColor: "bg-purple-50 text-purple-800 border-purple-300",
-    orgName: "Premier Realty Group (Brokerage)",
+    orgName: "Brokerage Firm",
     userTitle: "Agency Director",
     primaryNav: [
       { label: "Dashboard", href: "/agency" },
@@ -141,25 +144,29 @@ export const WORKSPACE_CONFIGS: Record<WorkspaceRole, WorkspaceConfig> = {
     id: "developer",
     name: "Developer",
     label: "Developer Project Workspace",
-    tagline: "Skyline Developers Lahore • LDA-REG-2024-889",
+    tagline: "Projects, inventory, bookings & installments",
     badgeColor: "bg-amber-50 text-amber-800 border-amber-300",
-    orgName: "Skyline Developers Lahore",
-    userTitle: "Tariq Mahmood (Project Director)",
+    orgName: "Developer Firm",
+    userTitle: "Project Director",
     primaryNav: [
       { label: "Dashboard", href: "/developer" },
       { label: "Projects", href: "/developer/projects" },
+      { label: "Structure", href: "/developer/structure" },
       { label: "Inventory", href: "/developer/inventory" },
       { label: "Bookings", href: "/developer/bookings" },
+      { label: "Payment Plans", href: "/developer/payment-plans" },
       { label: "Installments", href: "/developer/installments" },
       { label: "Customers", href: "/developer/customers" },
       { label: "Sales Team", href: "/developer/sales-team" },
-      { label: "Demand Intelligence", href: "/developer/demand-intelligence" },
+      { label: "NOC Docs", href: "/developer/noc" },
+      { label: "Demand Intel", href: "/developer/demand-intelligence" },
       { label: "Reports", href: "/developer/reports" },
     ],
     secondaryNav: [
-      { label: "Add Inventory Unit", href: "/developer#add-unit" },
-      { label: "Payment Verification Queue", href: "/developer#proofs" },
+      { label: "Create Payment Plan", href: "/developer/payment-plans" },
+      { label: "Bulk Inventory Import", href: "/developer/inventory" },
       { label: "NOC Documentation Center", href: "/developer/noc" },
+      { label: "Phases & Blocks", href: "/developer/structure" },
     ],
     mobileBottomNav: [
       { label: "Dashboard", href: "/developer", iconName: "LayoutDashboard" },
@@ -172,10 +179,10 @@ export const WORKSPACE_CONFIGS: Record<WorkspaceRole, WorkspaceConfig> = {
     id: "verifier",
     name: "Verifier",
     label: "Specialist Verification Workspace",
-    tagline: "Zahid Hussain • PLRA / Field Specialist",
+    tagline: "Cases, field visits, evidence & reports",
     badgeColor: "bg-teal-50 text-teal-800 border-teal-300",
-    orgName: "Pakistan Land Revenue Verification Service",
-    userTitle: "Zahid Hussain (Senior Inspector)",
+    orgName: "Verification Service",
+    userTitle: "Field Specialist",
     primaryNav: [
       { label: "Dashboard", href: "/specialist" },
       { label: "Assigned Cases", href: "/specialist/cases" },
@@ -198,42 +205,97 @@ export const WORKSPACE_CONFIGS: Record<WorkspaceRole, WorkspaceConfig> = {
   },
 };
 
+export const WORKSPACE_CONFIGS = BASE_CONFIGS;
+
 interface WorkspaceContextType {
   activeWorkspace: WorkspaceRole;
   config: WorkspaceConfig;
-  setWorkspace: (role: WorkspaceRole) => void;
+  setWorkspace: (role: WorkspaceRole) => boolean;
   isMoreMenuOpen: boolean;
   setIsMoreMenuOpen: (open: boolean) => void;
   toggleMoreMenu: () => void;
+  isWorkspaceReady: boolean;
 }
 
 const WorkspaceContext = createContext<WorkspaceContextType | undefined>(undefined);
 
 const STORAGE_KEY = "propertyiq_active_workspace";
 
+function personalizeConfig(
+  role: WorkspaceRole,
+  user: { fullName: string; email: string } | null
+): WorkspaceConfig {
+  const base = BASE_CONFIGS[role];
+  if (!user || role === "guest") return base;
+  return {
+    ...base,
+    userTitle: user.fullName,
+    tagline: `${user.fullName} · ${base.label}`,
+  };
+}
+
 export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
+  const { user, isAuthenticated, isHydrated, availableWorkspaces } = useAuth();
   const [activeWorkspace, setActiveWorkspaceState] = useState<WorkspaceRole>("guest");
-  const [isMoreMenuOpen, setIsMoreMenuOpen] = useState<boolean>(false);
+  const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
+  const [isWorkspaceReady, setIsWorkspaceReady] = useState(false);
 
+  // Sync workspace with auth after hydration
   useEffect(() => {
-    // Check localStorage or URL query param on mount
+    if (!isHydrated) return;
+
     const saved = localStorage.getItem(STORAGE_KEY) as WorkspaceRole | null;
-    if (saved && WORKSPACE_CONFIGS[saved]) {
-      setActiveWorkspaceState(saved);
+
+    if (!isAuthenticated) {
+      // Guests may only stay on guest; clear leftover professional workspace
+      if (saved && saved !== "guest") {
+        localStorage.setItem(STORAGE_KEY, "guest");
+      }
+      setActiveWorkspaceState("guest");
+      setIsWorkspaceReady(true);
+      return;
     }
-  }, []);
 
-  const setWorkspace = (role: WorkspaceRole) => {
-    setActiveWorkspaceState(role);
-    localStorage.setItem(STORAGE_KEY, role);
-    setIsMoreMenuOpen(false);
-  };
+    const allowed = availableWorkspaces;
+    let next: WorkspaceRole = "guest";
 
-  const toggleMoreMenu = () => {
-    setIsMoreMenuOpen((prev) => !prev);
-  };
+    if (saved && canAccessWorkspace(user?.role, saved)) {
+      next = saved;
+    } else if (user?.role) {
+      next = defaultWorkspaceForBackendRole(user.role);
+    } else if (allowed.includes("customer")) {
+      next = "customer";
+    }
 
-  const config = WORKSPACE_CONFIGS[activeWorkspace];
+    setActiveWorkspaceState(next);
+    localStorage.setItem(STORAGE_KEY, next);
+    setIsWorkspaceReady(true);
+  }, [isHydrated, isAuthenticated, user?.role, availableWorkspaces]);
+
+  const setWorkspace = useCallback(
+    (role: WorkspaceRole): boolean => {
+      if (role === "guest") {
+        setActiveWorkspaceState("guest");
+        localStorage.setItem(STORAGE_KEY, "guest");
+        setIsMoreMenuOpen(false);
+        return true;
+      }
+
+      if (!isAuthenticated || !canAccessWorkspace(user?.role, role)) {
+        return false;
+      }
+
+      setActiveWorkspaceState(role);
+      localStorage.setItem(STORAGE_KEY, role);
+      setIsMoreMenuOpen(false);
+      return true;
+    },
+    [isAuthenticated, user?.role]
+  );
+
+  const toggleMoreMenu = () => setIsMoreMenuOpen((prev) => !prev);
+
+  const config = personalizeConfig(activeWorkspace, user);
 
   return (
     <WorkspaceContext.Provider
@@ -244,6 +306,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
         isMoreMenuOpen,
         setIsMoreMenuOpen,
         toggleMoreMenu,
+        isWorkspaceReady,
       }}
     >
       {children}

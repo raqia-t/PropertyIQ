@@ -143,3 +143,55 @@ public enum PropertyVerificationStatus
     InReview = 1,
     Verified = 2
 }
+
+public enum AgentClientSide
+{
+    Buyer = 1,
+    Seller = 2,
+    Investor = 3,
+    Both = 4
+}
+
+public enum AgentClientStatus
+{
+    Prospect = 1,
+    Active = 2,
+    MandateSigned = 3,
+    UnderOffer = 4,
+    Closed = 5,
+    Inactive = 6
+}
+
+public enum AgentVisitStatus
+{
+    Requested = 1,
+    Confirmed = 2,
+    Completed = 3,
+    NoShow = 4,
+    Cancelled = 5
+}
+
+public enum PropertyEvidenceDocumentType
+{
+    SaleFard = 1,
+    Registry = 2,
+    PropertyFile = 3,
+    AllotmentLetter = 4,
+    TransferLetter = 5,
+    Other = 99
+}
+
+public enum PropertyEvidenceDocumentStatus
+{
+    Submitted = 1,
+    Accepted = 2,
+    Rejected = 3,
+    Superseded = 4
+}
+
+public enum AgencyMandateStatus
+{
+    Active = 1,
+    Suspended = 2,
+    Ended = 3
+}

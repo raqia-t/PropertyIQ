@@ -1,9 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 import { useWorkspace, WORKSPACE_CONFIGS, WorkspaceRole } from "@/context/WorkspaceContext";
+import { useAuth } from "@/context/AuthContext";
 import { useLoading } from "@/context/LoadingContext";
+import { WORKSPACE_HOME, isNavItemActive } from "@/lib/roles";
 import {
   Home,
   Search,
@@ -26,23 +29,20 @@ import {
   Check,
   User,
   ShieldCheck,
-  Briefcase
+  Briefcase,
+  Lock,
+  LogOut,
+  LogIn,
 } from "lucide-react";
 
-const roleDefaultRoutes: Record<WorkspaceRole, string> = {
-  guest: "/",
-  customer: "/",
-  agent: "/agent",
-  agency: "/agency",
-  developer: "/developer",
-  verifier: "/specialist",
-};
-
-export default function MobileBottomNav() {
+function MobileBottomNavInner() {
   const router = useRouter();
   const { activeWorkspace, config, setWorkspace, isMoreMenuOpen, setIsMoreMenuOpen } = useWorkspace();
+  const { isAuthenticated, availableWorkspaces, logout } = useAuth();
   const { startLoading } = useLoading();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const search = searchParams.toString();
 
   const getNavIcon = (iconName: string, active: boolean) => {
     const className = `w-5 h-5 ${active ? "text-emerald-600" : "text-slate-500"}`;
@@ -79,6 +79,8 @@ export default function MobileBottomNav() {
         return <Camera className={className} />;
       case "Activity":
         return <Activity className={className} />;
+      case "Shield":
+        return <ShieldCheck className={className} />;
       default:
         return <Home className={className} />;
     }
@@ -102,20 +104,27 @@ export default function MobileBottomNav() {
   };
 
   const handleSelectWorkspace = (role: WorkspaceRole) => {
-    setWorkspace(role);
+    const ok = setWorkspace(role);
+    if (!ok) {
+      setIsMoreMenuOpen(false);
+      router.push(`/auth/login?next=${encodeURIComponent(WORKSPACE_HOME[role])}`);
+      return;
+    }
     setIsMoreMenuOpen(false);
     startLoading(`Loading ${WORKSPACE_CONFIGS[role].name} Workspace...`);
-    router.push(roleDefaultRoutes[role]);
+    router.push(WORKSPACE_HOME[role]);
   };
 
-  const rolesList: WorkspaceRole[] = ["guest", "customer", "agent", "agency", "developer", "verifier"];
+  const rolesList: WorkspaceRole[] = isAuthenticated ? availableWorkspaces : ["guest"];
+  const lockedRoles: WorkspaceRole[] = (
+    ["customer", "agent", "agency", "developer", "verifier"] as WorkspaceRole[]
+  ).filter((r) => !rolesList.includes(r));
 
   return (
     <>
-      {/* Fixed Bottom Navigation Bar for Mobile */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-slate-200 px-2 py-1.5 flex items-center justify-around shadow-lg">
         {config.mobileBottomNav.map((item, idx) => {
-          const isActive = pathname === item.href;
+          const isActive = isNavItemActive(pathname, search, item.href);
           return (
             <Link
               key={idx}
@@ -134,7 +143,6 @@ export default function MobileBottomNav() {
           );
         })}
 
-        {/* 5th Tab: More Button */}
         <button
           onClick={() => setIsMoreMenuOpen(true)}
           className="flex flex-col items-center justify-center py-1 px-2 min-w-[60px]"
@@ -150,15 +158,10 @@ export default function MobileBottomNav() {
         </button>
       </nav>
 
-      {/* "More" Drawer / Bottom Sheet Modal */}
       {isMoreMenuOpen && (
         <div className="md:hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex flex-col justify-end">
-          <div
-            className="flex-1"
-            onClick={() => setIsMoreMenuOpen(false)}
-          />
-          <div className="bg-white rounded-t-3xl max-h-[85vh] overflow-y-auto p-6 space-y-6 shadow-2xl transition-all">
-            {/* Header */}
+          <div className="flex-1" onClick={() => setIsMoreMenuOpen(false)} />
+          <div className="bg-white rounded-t-3xl max-h-[85vh] overflow-y-auto p-6 space-y-6 shadow-2xl">
             <div className="flex items-start justify-between pb-3 border-b border-slate-100">
               <div>
                 <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
@@ -175,11 +178,10 @@ export default function MobileBottomNav() {
               </button>
             </div>
 
-            {/* Secondary Links for this Workspace */}
             {config.secondaryNav && config.secondaryNav.length > 0 && (
               <div>
                 <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">
-                  Workspace Actions & Shortcuts
+                  Workspace Actions
                 </h4>
                 <div className="space-y-1">
                   {config.secondaryNav.map((link, idx) => (
@@ -197,21 +199,20 @@ export default function MobileBottomNav() {
               </div>
             )}
 
-            {/* Switch Workspace Section */}
             <div>
               <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">
-                Switch Workspace Persona
+                {isAuthenticated ? "Your workspaces" : "Browsing mode"}
               </h4>
               <div className="grid grid-cols-2 gap-2">
                 {rolesList.map((role) => {
                   const item = WORKSPACE_CONFIGS[role];
                   const isSelected = activeWorkspace === role;
-
                   return (
-                    <div
+                    <button
+                      type="button"
                       key={role}
                       onClick={() => handleSelectWorkspace(role)}
-                      className={`cursor-pointer rounded-xl p-2.5 transition flex items-center justify-between border ${
+                      className={`rounded-xl p-2.5 transition flex items-center justify-between border ${
                         isSelected
                           ? "border-emerald-600 bg-emerald-50 text-emerald-900 font-bold"
                           : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
@@ -222,13 +223,55 @@ export default function MobileBottomNav() {
                         <span className="text-xs">{item.name}</span>
                       </div>
                       {isSelected && <Check className="w-3.5 h-3.5 text-emerald-600" />}
-                    </div>
+                    </button>
                   );
                 })}
               </div>
+
+              {lockedRoles.length > 0 && (
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  {lockedRoles.map((role) => (
+                    <button
+                      type="button"
+                      key={role}
+                      onClick={() => {
+                        setIsMoreMenuOpen(false);
+                        router.push(`/auth/login?next=${encodeURIComponent(WORKSPACE_HOME[role])}`);
+                      }}
+                      className="rounded-xl p-2.5 border border-dashed border-slate-200 bg-slate-50 text-slate-500 flex items-center gap-2"
+                    >
+                      <Lock className="w-3.5 h-3.5" />
+                      <span className="text-xs">{WORKSPACE_CONFIGS[role].name}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
-            <div className="pt-2 text-center">
+            <div className="space-y-2">
+              {isAuthenticated ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsMoreMenuOpen(false);
+                    logout();
+                    router.push("/");
+                  }}
+                  className="w-full py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold rounded-xl transition inline-flex items-center justify-center gap-2"
+                >
+                  <LogOut className="w-4 h-4" />
+                  Sign out
+                </button>
+              ) : (
+                <Link
+                  href="/auth/login"
+                  onClick={() => setIsMoreMenuOpen(false)}
+                  className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition inline-flex items-center justify-center gap-2"
+                >
+                  <LogIn className="w-4 h-4" />
+                  Sign in
+                </Link>
+              )}
               <button
                 onClick={() => setIsMoreMenuOpen(false)}
                 className="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition"
@@ -240,5 +283,13 @@ export default function MobileBottomNav() {
         </div>
       )}
     </>
+  );
+}
+
+export default function MobileBottomNav() {
+  return (
+    <Suspense fallback={null}>
+      <MobileBottomNavInner />
+    </Suspense>
   );
 }

@@ -5,16 +5,20 @@ import Link from "next/link";
 import {
   Building2,
   Layers,
-  CheckSquare,
-  CreditCard,
-  Users,
-  BarChart3,
-  FileText,
   ArrowLeft,
-  PlusCircle,
-  ShieldCheck,
   ExternalLink
 } from "lucide-react";
+import DeveloperProjectsSection from "@/components/developer/DeveloperProjectsSection";
+import DeveloperInventorySection from "@/components/developer/DeveloperInventorySection";
+import DeveloperBookingsSection from "@/components/developer/DeveloperBookingsSection";
+import DeveloperInstallmentsSection from "@/components/developer/DeveloperInstallmentsSection";
+import DeveloperCustomersSection from "@/components/developer/DeveloperCustomersSection";
+import DeveloperSalesTeamSection from "@/components/developer/DeveloperSalesTeamSection";
+import DeveloperDemandIntelSection from "@/components/developer/DeveloperDemandIntelSection";
+import DeveloperReportsSection from "@/components/developer/DeveloperReportsSection";
+import DeveloperPaymentPlansSection from "@/components/developer/DeveloperPaymentPlansSection";
+import DeveloperNocSection from "@/components/developer/DeveloperNocSection";
+import DeveloperStructureSection from "@/components/developer/DeveloperStructureSection";
 
 interface PageProps {
   params: Promise<{ section: string }>;
@@ -29,10 +33,22 @@ export default function DeveloperSectionPage({ params }: PageProps) {
     inventory: { title: "Scheme Inventory Matrix", subtitle: "Unit-level status, pricing, facing, and availability grid" },
     bookings: { title: "Customer Bookings & Contracts", subtitle: "All confirmed, completed, and pending buyer bookings" },
     installments: { title: "Installment Schedules & Proofs", subtitle: "Customer installment plans, due dates, and payment verification queue" },
+    "payment-plans": {
+      title: "Project Payment Plans",
+      subtitle: "Create installment templates customers select when booking a unit",
+    },
     customers: { title: "Scheme Buyer Directory", subtitle: "Verified allottees, installment payment compliance, and ledger records" },
     "sales-team": { title: "Developer Sales & Broker Relations", subtitle: "Internal project sales reps and affiliated external broker channels" },
     "demand-intelligence": { title: "Demand & Pricing Intelligence", subtitle: "AI buyer search velocity, pricing elasticities, and catchment area analytics" },
-    reports: { title: "Collections & Regulatory Audits", subtitle: "LDA compliance statements, installment recovery, and inventory audits" }
+    reports: { title: "Collections & Regulatory Audits", subtitle: "LDA compliance statements, installment recovery, and inventory audits" },
+    noc: {
+      title: "NOC Documentation Center",
+      subtitle: "LDA/CDA NOCs, society approvals, and scheme compliance files",
+    },
+    structure: {
+      title: "Phases & Blocks",
+      subtitle: "Scheme structure used when placing inventory units",
+    },
   };
 
   const current = sectionTitles[section] || {
@@ -84,77 +100,29 @@ export default function DeveloperSectionPage({ params }: PageProps) {
 
       {/* Section Content */}
       <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-sm space-y-6">
-        {section === "demand-intelligence" && (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div>
-                <h3 className="font-extrabold text-base text-slate-900">Raiwind Road Catchment Demand Pulse</h3>
-                <p className="text-xs text-slate-500">Live AI demand tracking from buyer search queries across Pakistan</p>
-              </div>
-              <Link
-                href="/demand-intelligence"
-                className="text-xs font-bold text-amber-700 hover:text-amber-800 bg-amber-50 px-3 py-1.5 rounded-xl border border-amber-200"
-              >
-                Launch Deep Heatmap Module →
-              </Link>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
-              <div className="p-4 rounded-2xl bg-amber-50/50 border border-amber-200 text-center">
-                <span className="text-amber-800 font-bold block text-[11px] uppercase">5 Marla Plots Search Surge</span>
-                <span className="text-2xl font-black text-slate-900 mt-1 block">+38% MoM</span>
-                <span className="text-slate-500 text-[11px]">Primary budget range: PKR 90L - 1 Cr</span>
-              </div>
-              <div className="p-4 rounded-2xl bg-amber-50/50 border border-amber-200 text-center">
-                <span className="text-amber-800 font-bold block text-[11px] uppercase">Installment Conversion Lift</span>
-                <span className="text-2xl font-black text-slate-900 mt-1 block">3.2x</span>
-                <span className="text-slate-500 text-[11px]">vs 100% upfront cash sales</span>
-              </div>
-              <div className="p-4 rounded-2xl bg-amber-50/50 border border-amber-200 text-center">
-                <span className="text-amber-800 font-bold block text-[11px] uppercase">Diaspora Inquiries</span>
-                <span className="text-2xl font-black text-slate-900 mt-1 block">42%</span>
-                <span className="text-slate-500 text-[11px]">UK, UAE & US Pakistani expat buyers</span>
-              </div>
-            </div>
-          </div>
-        )}
+        {section === "projects" && <DeveloperProjectsSection />}
 
-        {section === "installments" && (
-          <div className="space-y-4">
-            <h3 className="font-extrabold text-base text-slate-900">Scheme Installment Collections Overview</h3>
-            <div className="p-4 rounded-2xl border border-emerald-200 bg-emerald-50/30 text-xs text-emerald-950 flex items-center justify-between">
-              <div>
-                <span className="font-bold block">82% On-Time Collection Rate</span>
-                <span className="text-emerald-800">PKR 3.9 Crore collected across 120 scheduled units in Skyline Meadows</span>
-              </div>
-              <Link
-                href="/developer"
-                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2 rounded-xl transition"
-              >
-                Review Pending Proofs
-              </Link>
-            </div>
-          </div>
-        )}
+        {section === "inventory" && <DeveloperInventorySection />}
 
-        {section === "inventory" && (
-          <div className="space-y-4">
-            <h3 className="font-extrabold text-base text-slate-900">120 Inventory Units in Skyline Meadows</h3>
-            <p className="text-xs text-slate-500">
-              Manage live status (Available, Reserved, Booked, Sold, Blocked) directly from the Developer Hub.
-            </p>
-            <div className="pt-2">
-              <Link
-                href="/developer"
-                className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 hover:text-emerald-800"
-              >
-                <span>Switch to Interactive Inventory Grid</span>
-                <span>→</span>
-              </Link>
-            </div>
-          </div>
-        )}
+        {section === "bookings" && <DeveloperBookingsSection />}
 
-        {!["demand-intelligence", "installments", "inventory"].includes(section) && (
+        {section === "demand-intelligence" && <DeveloperDemandIntelSection />}
+
+        {section === "installments" && <DeveloperInstallmentsSection />}
+
+        {section === "payment-plans" && <DeveloperPaymentPlansSection />}
+
+        {section === "customers" && <DeveloperCustomersSection />}
+
+        {section === "sales-team" && <DeveloperSalesTeamSection />}
+
+        {section === "reports" && <DeveloperReportsSection />}
+
+        {section === "noc" && <DeveloperNocSection />}
+
+        {section === "structure" && <DeveloperStructureSection />}
+
+        {!["projects", "inventory", "bookings", "demand-intelligence", "installments", "payment-plans", "customers", "sales-team", "reports", "noc", "structure"].includes(section) && (
           <div className="text-center py-8 text-xs text-slate-500 space-y-2">
             <Building2 className="w-8 h-8 text-amber-600 mx-auto" />
             <h4 className="font-bold text-slate-900 text-sm">Skyline Developers — {current.title}</h4>

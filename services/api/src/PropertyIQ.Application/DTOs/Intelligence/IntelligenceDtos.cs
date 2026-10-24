@@ -9,12 +9,21 @@ public class DemandGapDto
     public string Area { get; set; } = string.Empty;
     public string PropertyType { get; set; } = string.Empty;
     public string SizeCategory { get; set; } = string.Empty; // e.g. "5 Marla", "10 Marla", "1 Kanal"
+    /// <summary>Proxy demand score: views + inquiries + weighted bookings (not vendor search logs).</summary>
     public int MonthlySearchVolume { get; set; }
     public int ActiveSupplyCount { get; set; }
     public double DemandSupplyRatio { get; set; }
-    public string GapLevel { get; set; } = "High"; // High, Medium, Balanced, Oversupplied
+    /// <summary>HighDemandLowSupply | Balanced | Oversupplied</summary>
+    public string GapLevel { get; set; } = "Balanced";
     public decimal MedianSearchBudget { get; set; }
     public string RecommendedAction { get; set; } = string.Empty;
+    /// <summary>live_inventory | live_units</summary>
+    public string SignalSource { get; set; } = "live_inventory";
+    /// <summary>rules | ollama</summary>
+    public string RecommendationSource { get; set; } = "rules";
+    public int BookingsCount { get; set; }
+    public int ViewsCount { get; set; }
+    public int InquiriesCount { get; set; }
 }
 
 public class NeighborhoodPoiDto
@@ -38,6 +47,12 @@ public class NeighborhoodIntelligenceDto
     public List<NeighborhoodPoiDto> PointsOfInterest { get; set; } = new();
     public Dictionary<string, int> CommuteEstimatesMinutes { get; set; } = new();
     public string AiSummary { get; set; } = string.Empty;
+    /// <summary>live_pois | curated_seed</summary>
+    public string SignalSource { get; set; } = "curated_seed";
+    /// <summary>osm_overpass | osm_nominatim | google_places | seed</summary>
+    public string PoiSource { get; set; } = "seed";
+    public double? Latitude { get; set; }
+    public double? Longitude { get; set; }
 }
 
 public class DeveloperDemandRadarDto
@@ -48,6 +63,10 @@ public class DeveloperDemandRadarDto
     public List<BudgetDistributionBracket> BudgetDistribution { get; set; } = new();
     public double PreferredInstallmentDurationMonths { get; set; } = 36;
     public string KeyTakeaway { get; set; } = string.Empty;
+    /// <summary>live_units | empty</summary>
+    public string SignalSource { get; set; } = "live_units";
+    public int TotalUnitsAnalyzed { get; set; }
+    public int BookingsAnalyzed { get; set; }
 }
 
 public class UnitDemandSignal
@@ -57,11 +76,15 @@ public class UnitDemandSignal
     public double VelocityUnitsPerMonth { get; set; }
     public decimal AverageClosingPrice { get; set; }
     public string Status { get; set; } = "High Velocity";
+    public int AvailableCount { get; set; }
+    public int BookedOrSoldCount { get; set; }
+    public int RecentBookings { get; set; }
 }
 
 public class BudgetDistributionBracket
 {
     public string PriceBracket { get; set; } = string.Empty; // e.g. "PKR 50L - 1 Cr"
+    /// <summary>Share of bookings (or available stock if no bookings) in this bracket.</summary>
     public double SearcherPercentage { get; set; }
     public int ActiveListingsCount { get; set; }
 }

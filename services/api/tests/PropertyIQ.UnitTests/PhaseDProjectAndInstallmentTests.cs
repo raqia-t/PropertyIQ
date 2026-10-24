@@ -1,5 +1,7 @@
 using System;
+using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -21,6 +23,23 @@ public class PhaseDProjectAndInstallmentTests
         public Guid? UserId { get; set; } = Guid.NewGuid();
         public string? UserEmail { get; set; } = "developer@skylinedev.pk";
         public string? UserRole { get; set; } = "Developer";
+    }
+
+    private class FakeFileStorageService : IFileStorageService
+    {
+        public Task<string> UploadFileAsync(
+            string fileName,
+            Stream content,
+            string contentType,
+            bool isPrivate = false,
+            CancellationToken cancellationToken = default)
+            => Task.FromResult($"public/{Guid.NewGuid()}_{fileName}");
+
+        public Task<Stream?> GetFileAsync(string storageKey, CancellationToken cancellationToken = default)
+            => Task.FromResult<Stream?>(null);
+
+        public Task DeleteFileAsync(string storageKey, CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
     }
 
     private ApplicationDbContext CreateInMemoryDbContext()
@@ -100,7 +119,7 @@ public class PhaseDProjectAndInstallmentTests
         using var context = CreateInMemoryDbContext();
         var currentUserService = new FakeCurrentUserService();
         var calculator = new InstallmentScheduleCalculator();
-        var controller = new BookingsController(context, currentUserService, calculator);
+        var controller = new BookingsController(context, currentUserService, calculator, new FakeFileStorageService());
 
         var project = new Project { Name = "Skyline Meadows", Slug = "skyline-meadows" };
         context.Projects.Add(project);
@@ -141,7 +160,7 @@ public class PhaseDProjectAndInstallmentTests
         using var context = CreateInMemoryDbContext();
         var currentUserService = new FakeCurrentUserService();
         var calculator = new InstallmentScheduleCalculator();
-        var controller = new BookingsController(context, currentUserService, calculator);
+        var controller = new BookingsController(context, currentUserService, calculator, new FakeFileStorageService());
 
         var project = new Project { Name = "Skyline Meadows 2", Slug = "skyline-meadows-2" };
         context.Projects.Add(project);
@@ -174,7 +193,7 @@ public class PhaseDProjectAndInstallmentTests
         using var context = CreateInMemoryDbContext();
         var currentUserService = new FakeCurrentUserService();
         var calculator = new InstallmentScheduleCalculator();
-        var controller = new BookingsController(context, currentUserService, calculator);
+        var controller = new BookingsController(context, currentUserService, calculator, new FakeFileStorageService());
 
         var project = new Project { Name = "DHA Commercial Mall", Slug = "dha-commercial-mall" };
         var unit = new InventoryUnit
@@ -221,7 +240,7 @@ public class PhaseDProjectAndInstallmentTests
         using var context = CreateInMemoryDbContext();
         var currentUserService = new FakeCurrentUserService();
         var calculator = new InstallmentScheduleCalculator();
-        var controller = new BookingsController(context, currentUserService, calculator);
+        var controller = new BookingsController(context, currentUserService, calculator, new FakeFileStorageService());
 
         var unit = new InventoryUnit
         {

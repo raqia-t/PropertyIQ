@@ -1,6 +1,14 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, useRef, Suspense } from "react";
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+  Suspense,
+} from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 
 interface LoadingContextType {
@@ -37,7 +45,7 @@ export function LoadingProvider({ children }: { children: React.ReactNode }) {
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const completeTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  const startLoading = (message?: string) => {
+  const startLoading = useCallback((message?: string) => {
     if (completeTimerRef.current) clearTimeout(completeTimerRef.current);
     if (timerRef.current) clearInterval(timerRef.current);
 
@@ -53,9 +61,9 @@ export function LoadingProvider({ children }: { children: React.ReactNode }) {
         return Math.min(90, prev + increment);
       });
     }, 180);
-  };
+  }, []);
 
-  const stopLoading = () => {
+  const stopLoading = useCallback(() => {
     if (timerRef.current) clearInterval(timerRef.current);
     setProgress(100);
 
@@ -63,7 +71,7 @@ export function LoadingProvider({ children }: { children: React.ReactNode }) {
       setIsLoading(false);
       setProgress(0);
     }, 300);
-  };
+  }, []);
 
   // Global click interception for client-side Link navigations
   useEffect(() => {

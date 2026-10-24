@@ -10,6 +10,8 @@ public class CreateVerificationCaseDto
     public Guid? ProjectId { get; set; }
     public VerificationLevel ServiceLevel { get; set; } = VerificationLevel.BasicDocumentReview;
     public string? CustomerNotes { get; set; }
+    /// <summary>Customer must acknowledge the listed fee (demo payment).</summary>
+    public bool AcknowledgeFee { get; set; }
     public List<InitialDocumentDto> Documents { get; set; } = new();
 }
 
@@ -22,7 +24,7 @@ public class InitialDocumentDto
 
 public class AssignSpecialistDto
 {
-    public Guid SpecialistId { get; set; }
+    public Guid? SpecialistId { get; set; }
     public string? AssignmentNotes { get; set; }
 }
 
@@ -48,4 +50,22 @@ public class GenerateReportDto
     public string? SpecialistNotes { get; set; }
     public string? CustomerRecommendations { get; set; }
     public string? Limitations { get; set; }
+}
+
+public class ScheduleVisitDto
+{
+    public DateTime ScheduledVisitAtUtc { get; set; }
+    public string? VisitNotes { get; set; }
+}
+
+public class CancelVerificationCaseDto
+{
+    public string? Reason { get; set; }
+}
+
+public class ReviewTitleDocumentDto
+{
+    public bool Approve { get; set; } = true;
+    public string? Notes { get; set; }
+    public Guid? LinkCaseId { get; set; }
 }

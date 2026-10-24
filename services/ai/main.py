@@ -1,7 +1,37 @@
 from typing import Optional, List, Dict, Any
-from fastapi import FastAPI, HTTPException
+import logging
+import time
+
+from fastapi import FastAPI, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
+
+from search_schema import (
+    NaturalLanguageSearchRequest,
+    StructuredSearchFilter,
+    schema_catalog,
+)
+from rule_parser import parse_with_rules
+from ollama_parser import (
+    AI_PARSER_MODE,
+    check_ollama_health,
+    get_parser_config,
+    parse_with_ollama,
+)
+from prompt_search import PROMPT_VERSION, prompt_catalog
+from parse_logging import LOG_FILE, log_parse_event
+from ollama_listing_draft import generate_listing_draft, get_listing_draft_config
+from property_scenario import compute_scenario
+from ollama_scenario_explain import explain_scenario_with_ollama, get_scenario_explain_config
+from image_classifier import (
+    check_vision_model,
+    classify_property_image,
+    get_image_classify_config,
+)
+from agent_ops import get_agent_ops_config, run_agent_ops
+
+logger = logging.getLogger("propertyiq.ai")
+logging.basicConfig(level=logging.INFO)
 
 app = FastAPI(
     title="PropertyIQ AI Intelligence Microservice",
@@ -17,23 +47,20 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-class NaturalLanguageSearchRequest(BaseModel):
-    query: str = Field(..., example="5 marla house in Lahore under 3 crore near good schools with rental potential")
-    preferred_city: Optional[str] = "Lahore"
-
-class StructuredSearchFilter(BaseModel):
-    raw_query: str
-    city: str
+class PropertyCompSnapshot(BaseModel):
+    property_id: Optional[str] = None
+    title: Optional[str] = None
+    city: Optional[str] = None
     area: Optional[str] = None
     property_type: Optional[str] = None
-    min_price: Optional[float] = None
-    max_price: Optional[float] = None
+    purpose: Optional[str] = None
+    price: float = 0
+    size: float = 0
+    size_unit: str = "Marla"
     bedrooms: Optional[int] = None
-    land_area: Optional[float] = None
-    land_area_unit: Optional[str] = "Marla"
-    lifestyle_preferences: List[str] = []
-    investment_intent: Optional[str] = None
-    confidence_score: float
+    expected_rent_min: Optional[float] = None
+    expected_rent_max: Optional[float] = None
+
 
 class PropertyScenarioRequest(BaseModel):
     property_id: Optional[str] = None
@@ -44,6 +71,10 @@ class PropertyScenarioRequest(BaseModel):
     size_unit: str = "Marla"
     asking_price: float
     bedrooms: Optional[int] = None
+    purpose: Optional[str] = "Sale"
+    sale_comps: List[PropertyCompSnapshot] = Field(default_factory=list)
+    rent_comps: List[PropertyCompSnapshot] = Field(default_factory=list)
+
 
 class PropertyScenarioResponse(BaseModel):
     fair_price_low: float
@@ -57,180 +88,207 @@ class PropertyScenarioResponse(BaseModel):
     assumptions: List[str]
     confidence_score: float
     disclaimer: str
+    sale_comp_count: int = 0
+    rent_comp_count: int = 0
+    valuation_source: str = "formula"
+    explain_source: str = "none"
 
 class ImageClassificationRequest(BaseModel):
-    image_url: str
+    image_url: Optional[str] = ""
+    image_base64: Optional[str] = None
+    filename: Optional[str] = None
     property_type: Optional[str] = "House"
+
 
 class ImageClassificationResponse(BaseModel):
     classified_room: str
+    ui_category: str = "Living Room / Hall"
     confidence: float
     detected_features: List[str]
     quality_issues: List[str]
     missing_media_suggestions: List[str]
+    source: str = "filename_fallback"
 
 
 @app.get("/health")
 def health_check():
+    llm = check_ollama_health()
+    llm_ok = llm.get("status") == "up"
+    parser_mode = get_parser_config().get("mode", "hybrid")
+    # Degraded when hybrid/llm expected but Ollama is down (rules still work)
+    overall = "healthy"
+    if parser_mode in ("hybrid", "llm") and not llm_ok:
+        overall = "degraded"
+
     return {
-        "status": "healthy",
+        "status": overall,
         "service": "PropertyIQ AI Microservice",
-        "market": "Pakistan"
+        "market": "Pakistan",
+        "search_schema_version": "1.0.0",
+        "prompt_version": PROMPT_VERSION,
+        "parser": get_parser_config(),
+        "llm": llm,
+        "ops": {
+            "parse_log_file": str(LOG_FILE),
+            "ready_for_nl_search": True,
+            "ollama_required_for_best_quality": parser_mode in ("hybrid", "llm"),
+            "listing_draft": get_listing_draft_config(),
+            "scenario_explain": get_scenario_explain_config(),
+            "image_classify": get_image_classify_config(),
+            "vision": check_vision_model(),
+            "agent_ops": get_agent_ops_config(),
+        },
     }
 
 
+@app.get("/health/ready")
+def health_ready():
+    """Phase 8 readiness probe for start-dev / orchestrators."""
+    body = health_check()
+    llm = body.get("llm") or {}
+    ready = body.get("status") in ("healthy", "degraded")
+    return {
+        "ready": ready,
+        "status": body.get("status"),
+        "llm": llm.get("status"),
+        "prompt_version": body.get("prompt_version"),
+        "parser_mode": (body.get("parser") or {}).get("mode"),
+    }
+
+
+@app.get("/ai/search-schema")
+def get_search_schema():
+    """Phase 2 contract: enums + JSON Schema for Ollama / clients."""
+    return schema_catalog()
+
+
+@app.get("/ai/search-prompt")
+def get_search_prompt():
+    """Phase 4 prompt catalog (glossary, enums, few-shots)."""
+    return prompt_catalog()
+
+
 @app.post("/ai/search-parser", response_model=StructuredSearchFilter)
-def parse_natural_language_search(request: NaturalLanguageSearchRequest):
-    q = request.query.lower()
-    
-    # Deterministic rule-based extraction tailored for Pakistan market terminology
-    city = request.preferred_city or "Lahore"
-    if "lahore" in q:
-        city = "Lahore"
-    elif "islamabad" in q:
-        city = "Islamabad"
-    elif "rawalpindi" in q:
-        city = "Rawalpindi"
-    elif "karachi" in q:
-        city = "Karachi"
+def parse_natural_language_search(request: NaturalLanguageSearchRequest, response: Response):
+    """
+    Phase 3 hybrid parser (+ Phase 8 structured ops logging):
+      hybrid (default) -> Ollama then rule fallback
+      llm              -> Ollama preferred; still falls back to rules if Ollama fails
+      rules            -> rule parser only
+    """
+    mode = AI_PARSER_MODE
+    source = "rules"
+    fallback_reason: Optional[str] = None
+    t0 = time.perf_counter()
 
-    # Property Type
-    prop_type = None
-    if "house" in q or "kothi" in q or "bungalow" in q:
-        prop_type = "House"
-    elif "flat" in q or "apartment" in q:
-        prop_type = "ApartmentFlat"
-    elif "plot" in q:
-        prop_type = "Plot"
-    elif "commercial" in q or "shop" in q:
-        prop_type = "CommercialShop"
+    if mode in ("hybrid", "llm"):
+        result, err = parse_with_ollama(request)
+        if result is not None:
+            source = "ollama"
+            response.headers["X-PropertyIQ-Parser"] = source
+            latency_ms = int((time.perf_counter() - t0) * 1000)
+            log_parse_event(
+                raw_query=request.query,
+                preferred_city=request.preferred_city,
+                source=source,
+                result=result,
+                latency_ms=latency_ms,
+                mode=mode,
+            )
+            return result
+        fallback_reason = err or "ollama_unavailable"
+        logger.warning("search-parser ollama miss (%s); falling back to rules", fallback_reason)
 
-    # Land Area
-    land_area = None
-    land_unit = "Marla"
-    if "5 marla" in q or "5-marla" in q:
-        land_area = 5.0
-        land_unit = "Marla"
-    elif "10 marla" in q or "10-marla" in q:
-        land_area = 10.0
-        land_unit = "Marla"
-    elif "1 kanal" in q or "1-kanal" in q:
-        land_area = 1.0
-        land_unit = "Kanal"
+    result = parse_with_rules(request)
+    # Tag rule fallback slightly lower when hybrid wanted LLM
+    if mode in ("hybrid", "llm") and source != "ollama":
+        result.confidence_score = min(result.confidence_score, 0.85)
+        source = "rules_fallback"
+    else:
+        source = "rules"
+        fallback_reason = None
 
-    # Budget (Crore / Lakh)
-    max_price = None
-    if "under 3 crore" in q or "under 3 cr" in q:
-        max_price = 30000000.0
-    elif "under 2 crore" in q or "under 2 cr" in q:
-        max_price = 20000000.0
-    elif "under 1 crore" in q or "under 1 cr" in q:
-        max_price = 10000000.0
-    elif "under 50 lakh" in q or "under 50 lac" in q:
-        max_price = 5000000.0
-
-    lifestyle = []
-    if "school" in q:
-        lifestyle.append("Near reputable schools")
-    if "hospital" in q:
-        lifestyle.append("Near medical facilities / hospital")
-    if "park" in q:
-        lifestyle.append("Near parks / green area")
-    if "mosque" in q or "masjid" in q:
-        lifestyle.append("Walking distance to mosque")
-
-    investment_intent = "Rental & Capital Appreciation" if ("rental" in q or "yield" in q or "investment" in q) else "Personal Residence"
-
-    return StructuredSearchFilter(
+    response.headers["X-PropertyIQ-Parser"] = source
+    latency_ms = int((time.perf_counter() - t0) * 1000)
+    log_parse_event(
         raw_query=request.query,
-        city=city,
-        area="DHA Phase 6" if "dha" in q else None,
-        property_type=prop_type,
-        min_price=None,
-        max_price=max_price,
-        bedrooms=3 if "3 bed" in q else (5 if land_area == 10.0 else 3 if land_area == 5.0 else None),
-        land_area=land_area,
-        land_area_unit=land_unit,
-        lifestyle_preferences=lifestyle,
-        investment_intent=investment_intent,
-        confidence_score=0.92
+        preferred_city=request.preferred_city,
+        source=source,
+        result=result,
+        latency_ms=latency_ms,
+        mode=mode,
+        fallback_reason=fallback_reason,
     )
+    return result
 
 
 @app.post("/ai/property-scenario", response_model=PropertyScenarioResponse)
-def calculate_property_scenario(request: PropertyScenarioRequest):
-    price = request.asking_price
-    
-    # Valuation band based on current Pakistan market yield norms (3.5% - 5.5% gross residential yield)
-    fair_price_low = round(price * 0.94, 2)
-    fair_price_high = round(price * 1.05, 2)
-
-    monthly_rent_mid = round(price * 0.0042, 2)  # ~5.0% annual gross yield
-    rent_min = round(monthly_rent_mid * 0.90, 2)
-    rent_max = round(monthly_rent_mid * 1.12, 2)
-    annual_rent = monthly_rent_mid * 12
-    gross_yield = round((annual_rent / price) * 100, 2) if price > 0 else 0.0
-
-    # 3, 5, 10-year compounding appreciation scenarios (assumes historical 10-12% nominal growth in prime Pakistan urban corridors)
-    fv_3 = round(price * (1.11 ** 3), 2)
-    fv_5 = round(price * (1.11 ** 5), 2)
-    fv_10 = round(price * (1.11 ** 10), 2)
-
-    return PropertyScenarioResponse(
-        fair_price_low=fair_price_low,
-        fair_price_high=fair_price_high,
-        estimated_rent_monthly_min=rent_min,
-        estimated_rent_monthly_max=rent_max,
-        gross_yield_percentage=gross_yield,
-        future_value_3yr_scenario=fv_3,
-        future_value_5yr_scenario=fv_5,
-        future_value_10yr_scenario=fv_10,
-        assumptions=[
-            f"Based on comparable active listings in {request.area}, {request.city}",
-            "Nominal appreciation model assumes 11% average annual corridor growth",
-            "Rental estimate assumes standard unfurnished/semi-furnished residential occupancy with 10% annual escalation",
-            "Estimates exclude society transfer taxes and stamp duty"
-        ],
-        confidence_score=0.88,
-        disclaimer="Estimates and scenario models are generated for informational decision support and do not guarantee future rental income or market liquidation value."
+def calculate_property_scenario(request: PropertyScenarioRequest, response: Response):
+    """Phase B: comps-aware valuation + optional Ollama explanation (numbers stay locked)."""
+    sale = [c.model_dump() for c in request.sale_comps]
+    rent = [c.model_dump() for c in request.rent_comps]
+    result, source = compute_scenario(
+        city=request.city,
+        area=request.area,
+        property_type=request.property_type,
+        size=request.size,
+        size_unit=request.size_unit,
+        asking_price=request.asking_price,
+        bedrooms=request.bedrooms,
+        sale_comps=sale,
+        rent_comps=rent,
+        purpose=request.purpose,
     )
+
+    explain_source = "none"
+    bullets = explain_scenario_with_ollama(
+        city=request.city,
+        area=request.area,
+        property_type=request.property_type,
+        size=request.size,
+        size_unit=request.size_unit,
+        asking_price=request.asking_price,
+        scenario=result,
+    )
+    if bullets:
+        # Keep deterministic assumptions, append AI narrative
+        result["assumptions"] = list(result.get("assumptions") or []) + bullets
+        explain_source = "ollama"
+
+    result["explain_source"] = explain_source
+    response.headers["X-PropertyIQ-Valuation"] = source
+    response.headers["X-PropertyIQ-Scenario-Explain"] = explain_source
+    logger.info(
+        "property-scenario source=%s explain=%s sale_comps=%s rent_comps=%s city=%s",
+        source,
+        explain_source,
+        result.get("sale_comp_count"),
+        result.get("rent_comp_count"),
+        request.city,
+    )
+    return PropertyScenarioResponse(**result)
 
 
 @app.post("/ai/image-classification", response_model=ImageClassificationResponse)
-def classify_property_image(request: ImageClassificationRequest):
-    # Standard classification & attribute tagging
-    url_lower = request.image_url.lower()
-    room = "LivingRoom"
-    features = [
-        "Imported porcelain tile flooring",
-        "Recessed false ceiling with LED downlights",
-        "Large double-glazed aluminum windows with natural lighting",
-        "Modern wall-mounted media console"
-    ]
-    if "kitchen" in url_lower:
-        room = "Kitchen"
-        features = ["Spanish marble countertops", "Fitted cabinets with soft-close hinges", "Built-in oven space", "Double stainless sink"]
-    elif "bed" in url_lower:
-        room = "Bedroom"
-        features = ["Solid ash wood doors", "Hardwood/laminate finish flooring", "Wardrobe dressing space", "En-suite washroom access"]
-    elif "exterior" in url_lower or "front" in url_lower:
-        room = "Exterior"
-        features = ["Modern Spanish front elevation", "Wide driveway with automated gate space", "Weather-resistant exterior paint"]
-    elif "bath" in url_lower or "wash" in url_lower:
-        room = "Bathroom"
-        features = ["Grohe sanitary fittings", "Tempered glass shower partition", "Modern vanity with LED touch mirror"]
+def classify_property_image_endpoint(request: ImageClassificationRequest, response: Response):
+    """Phase C: Ollama vision classify with filename fallback."""
+    if not (request.image_url or request.image_base64):
+        raise HTTPException(status_code=400, detail="image_url or image_base64 required")
 
-    return ImageClassificationResponse(
-        classified_room=room,
-        confidence=0.94,
-        detected_features=features,
-        quality_issues=[],
-        missing_media_suggestions=[
-            "Exterior front elevation photo recommended",
-            "Kitchen view required for high listing completeness score",
-            "Master washroom photo missing"
-        ]
+    result, source = classify_property_image(
+        image_url=request.image_url or "",
+        image_base64=request.image_base64,
+        filename=request.filename or "",
+        property_type=request.property_type or "House",
     )
+    response.headers["X-PropertyIQ-Image-Source"] = source
+    logger.info(
+        "image-classify source=%s room=%s conf=%s",
+        source,
+        result.get("classified_room"),
+        result.get("confidence"),
+    )
+    return ImageClassificationResponse(**result)
 
 
 class GenerateListingDraftRequest(BaseModel):
@@ -256,43 +314,66 @@ class AiListingDraftResponse(BaseModel):
 
 
 @app.post("/ai/listing-draft", response_model=AiListingDraftResponse)
-def generate_listing_draft(request: GenerateListingDraftRequest):
-    price_formatted = f"PKR {request.price / 10000000:.2f} Crore" if request.price >= 10000000 else f"PKR {request.price / 100000:.0f} Lakh"
-    title = f"Brand New {request.size} {request.size_unit} Modern Luxury {request.property_type} in {request.area}, {request.city}"
-    
-    desc = (
-        f"PropertyIQ AI Verified Listing: Spectacular newly constructed {request.size} {request.size_unit} designer {request.property_type.lower()} "
-        f"located in prime {request.area}, {request.city}. Offering {request.bedrooms} expansive master bedrooms with designer attached baths, "
-        f"open-concept chef's kitchen, drawing & dining halls, and dedicated servant quarters. "
-        f"Features include: {request.user_notes or 'Premium fittings, solar power backup readiness, and high-security access'}. "
-        f"Offered at an attractive valuation of {price_formatted}."
+def generate_listing_draft_endpoint(request: GenerateListingDraftRequest, response: Response):
+    """Phase A: Ollama listing draft with template fallback."""
+    payload = request.model_dump()
+    draft, source = generate_listing_draft(payload)
+    response.headers["X-PropertyIQ-Listing-Draft"] = source
+    logger.info(
+        "listing-draft source=%s city=%s area=%s type=%s score=%s",
+        source,
+        request.city,
+        request.area,
+        request.property_type,
+        draft.get("completeness_score"),
     )
+    return AiListingDraftResponse(**draft)
 
-    highlights = [
-        f"Prime location in {request.area}, {request.city}",
-        f"Spacious {request.size} {request.size_unit} land area with optimal architectural layout",
-        f"{request.bedrooms} Master Bedrooms with imported luxury sanitary fittings",
-        "Direct access to main commercial hubs, parks, and top-tier educational institutions",
-        "Clear documentation with independent verification available on PropertyIQ"
-    ]
 
-    keywords = [
-        f"{request.size} {request.size_unit} {request.property_type.lower()} in {request.area}",
-        f"house for sale in {request.city}",
-        f"{request.city} real estate investment",
-        f"{request.area} properties"
-    ]
+class AgentOpsAlertIn(BaseModel):
+    property_id: str
+    title: Optional[str] = None
+    issue: Optional[str] = None
+    recommendation: Optional[str] = None
+    alert_type: Optional[str] = None
+    city: Optional[str] = None
+    area: Optional[str] = None
+    asking_price: Optional[float] = None
 
-    return AiListingDraftResponse(
-        suggested_title=title,
-        suggested_description=desc,
-        selling_highlights=highlights,
-        seo_keywords=keywords,
-        completeness_score=92,
-        confirmation_required=[
-            "Please confirm building completion certificate / map approval status",
-            "Please confirm utility connections (Electricity meter, Sui Gas, Water Supply)",
-            "Please confirm exact possession date"
-        ],
-        disclaimer="AI-generated description is an assistive draft. The seller/agent is legally responsible for verifying all physical and title assertions before publishing."
+
+class AgentOpsRequest(BaseModel):
+    stats: Dict[str, Any] = Field(default_factory=dict)
+    fallback_brief: Optional[str] = None
+    alerts: List[AgentOpsAlertIn] = Field(default_factory=list)
+    audience: str = "agent"  # agent | agency | developer
+
+
+class AgentOpsRecommendationOut(BaseModel):
+    property_id: str
+    recommendation: str
+    source: str = "rules"
+
+
+class AgentOpsResponse(BaseModel):
+    briefing: str
+    briefing_source: str
+    recommendations: List[AgentOpsRecommendationOut]
+    fallback_reason: Optional[str] = None
+
+
+@app.post("/ai/agent-ops", response_model=AgentOpsResponse)
+def agent_ops_endpoint(request: AgentOpsRequest, response: Response):
+    """Phase D: polish daily brief + optimizer recommendations over locked dashboard stats."""
+    result = run_agent_ops(
+        stats=request.stats or {},
+        fallback_brief=request.fallback_brief,
+        alerts=[a.model_dump() for a in request.alerts],
+        audience=request.audience or "agent",
     )
+    response.headers["X-PropertyIQ-Agent-Ops"] = result.get("briefing_source") or "rules"
+    logger.info(
+        "agent-ops briefing_source=%s alerts=%s",
+        result.get("briefing_source"),
+        len(result.get("recommendations") or []),
+    )
+    return AgentOpsResponse(**result)

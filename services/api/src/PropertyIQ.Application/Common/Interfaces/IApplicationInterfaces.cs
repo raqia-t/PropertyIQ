@@ -26,6 +26,12 @@ public interface IApplicationDbContext
     DbSet<AuditLog> AuditLogs { get; }
     DbSet<Inquiry> Inquiries { get; }
     DbSet<SavedProperty> SavedProperties { get; }
+    DbSet<AgentClient> AgentClients { get; }
+    DbSet<AgentVisit> AgentVisits { get; }
+    DbSet<PropertyView> PropertyViews { get; }
+    DbSet<PropertyEvidenceDocument> PropertyEvidenceDocuments { get; }
+    DbSet<AgencyProjectMandate> AgencyProjectMandates { get; }
+    DbSet<ProjectNocDocument> ProjectNocDocuments { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }
